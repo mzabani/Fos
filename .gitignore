@@ -1,0 +1,4 @@
+*.dll
+*.mdb
+*.userprefs
+/FastCgiServer/bin
