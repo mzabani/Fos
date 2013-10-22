@@ -2,10 +2,11 @@ using System;
 using FastCgiNet;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 
-namespace FastCgiServer
+namespace FastCgiServer.Owin
 {
-	class OwinParameters : IDictionary<string, object>
+	public class OwinContext : IDictionary<string, object>
 	{
 		/// <summary>
 		/// The parameters dictionary of the owin pipeline, built through this class's methods.
@@ -111,6 +112,8 @@ namespace FastCgiServer
 		Dictionary<string, string[]> requestHeaders;
 		Dictionary<string, string[]> responseHeaders;
 
+		public CancellationToken CancellationToken { get; private set; }
+
 		void SetOwinParameter(string key, object obj) {
 			if (parametersDictionary.ContainsKey(key))
 				parametersDictionary[key] = obj;
@@ -137,7 +140,7 @@ namespace FastCgiServer
 		/// <summary>
 		/// Sets Owin parameters according to the received FastCgi Params record <paramref name="rec"/>.
 		/// </summary>
-		public void AddParamsRecord(Record rec) {
+		internal void AddParamsRecord(Record rec) {
 			if (rec == null)
 				throw new ArgumentNullException("rec");
 			else if (rec.RecordType != RecordType.FCGIParams)
@@ -207,13 +210,22 @@ namespace FastCgiServer
 			}
 		}
 
-		public OwinParameters()
+		public OwinContext(string owinVersion, CancellationToken token)
 		{
+			// For now, only version 1.0 is allowed
+			if (owinVersion != "1.0")
+				throw new ArgumentException("Owin Version must be equal to '1.0'");
+
 			parametersDictionary = new Dictionary<string, object>();
 			requestHeaders = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
 			responseHeaders = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
 			SetOwinParameter("owin.RequestHeaders", requestHeaders);
 			SetOwinParameter("owin.ResponseHeaders", responseHeaders);
+
+			SetOwinParameter("owin.Version", owinVersion);
+
+			CancellationToken = token;
+			SetOwinParameter("owin.CallCancelled", token);
 
 			// Empty bodies
 			RequestBody = Stream.Null;
@@ -224,4 +236,3 @@ namespace FastCgiServer
 		}
 	}
 }
-

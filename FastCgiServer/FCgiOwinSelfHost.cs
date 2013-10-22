@@ -1,7 +1,10 @@
 using System;
 using FastCgiNet;
+using FastCgiNet.Logging;
+using FastCgiServer.Owin;
 using Owin;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 
 namespace FastCgiServer
 {
@@ -12,10 +15,11 @@ namespace FastCgiServer
 	public class FCgiOwinSelfHost : IDisposable
 	{
 		FastCgiApplication fastCgiProgram;
-		Dictionary<Request, FCgiRequest> requestsStatuses;
 		FCgiAppBuilder AppBuilder;
+		ConcurrentDictionary<Request, FCgiRequest> requestsStatuses;
 		Func<IDictionary<string, object>, System.Threading.Tasks.Task> OwinPipelineEntry;
 		Action<IAppBuilder> ApplicationConfigure;
+		ILogger logger;
 
 		/// <summary>
 		/// Starts this FastCgi server! This method blocks.
@@ -31,12 +35,21 @@ namespace FastCgiServer
 			fastCgiProgram.OnReceiveBeginRequestRecord += OnReceiveBeginRequest;
 			fastCgiProgram.OnReceiveParamsRecord += OnReceiveParams;
 			fastCgiProgram.OnReceiveStdinRecord += OnReceiveStdin;
+
+			if (logger != null)
+				fastCgiProgram.SetLogger(logger);
+
 			fastCgiProgram.Start();
 		}
 
-		void OnReceiveBeginRequest(Request req, Record rec) {
-			//TODO: Maybe we didn't have time to remove a different connection with the same requestid from the dictionary yet.. ?
-			requestsStatuses.Add(req, new FCgiRequest(req, rec, OwinPipelineEntry));
+		public void SetLogger(ILogger logger)
+		{
+			this.logger = logger;
+		}
+
+		void OnReceiveBeginRequest(Request req, Record rec)
+		{
+			requestsStatuses[req] = new FCgiRequest(req, rec, OwinPipelineEntry);
 		}
 
 		void OnReceiveParams(Request req, Record rec) {
@@ -45,9 +58,12 @@ namespace FastCgiServer
 
 		void OnReceiveStdin(Request req, Record rec) {
 			var onCloseConnection = requestsStatuses[req].ReceiveStdin(rec);
-			onCloseConnection.ContinueWith(t => {
+			onCloseConnection.ContinueWith(t =>
+			{
 				//TODO: The task may have failed or something else happened, verify
-				requestsStatuses.Remove(req);
+				FCgiRequest trash;
+				requestsStatuses.TryRemove(req, out trash);
+				//TODO: Log failure to remove request from dictionary
 				if (t.Result)
 					req.CloseSocket();
 			});
@@ -72,7 +88,7 @@ namespace FastCgiServer
 		public FCgiOwinSelfHost(Action<IAppBuilder> configureMethod)
 		{
 			ApplicationConfigure = configureMethod;
-			requestsStatuses = new Dictionary<Request, FCgiRequest>();
+			requestsStatuses = new ConcurrentDictionary<Request, FCgiRequest>();
 			fastCgiProgram = new FastCgiApplication();
 		}
 	}

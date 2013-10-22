@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Owin;
 
-namespace FastCgiServer
+namespace FastCgiServer.Owin
 {
 	public class FCgiAppBuilder : IAppBuilder
 	{

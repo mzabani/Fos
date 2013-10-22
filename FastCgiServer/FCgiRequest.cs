@@ -1,7 +1,9 @@
 using System;
 using FastCgiNet;
+using FastCgiServer.Owin;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Threading;
 using System.IO;
 
 namespace FastCgiServer
@@ -25,10 +27,10 @@ namespace FastCgiServer
 		}
 		public bool ApplicationMustCloseConnection { get; private set; }
 		public ConnectionStatus Status { get; private set; }
-		public OwinParameters owinParameters { get; private set; }
+		public OwinContext owinContext { get; private set; }
 		public Func<IDictionary<string, object>, Task> PipelineEntry { get; private set; }
 
-		LinkedList<Record> ReceivedStdinRecords;
+		private CancellationTokenSource cancellationSource;
 
 		void SendEndRequest()
 		{
@@ -72,14 +74,18 @@ namespace FastCgiServer
 			TestRecord(rec);
 
 			Status = ConnectionStatus.ParamsReceived;
-			if (owinParameters == null)
-				owinParameters = new OwinParameters();
-			owinParameters.AddParamsRecord(rec);
+			if (owinContext == null)
+			{
+				cancellationSource = new CancellationTokenSource();
+				owinContext = new OwinContext("1.0", cancellationSource.Token);
+			}
+
+			owinContext.AddParamsRecord(rec);
 		}
 
 		void SendHeaders()
 		{
-			var headers = (IDictionary<string, string[]>)owinParameters["owin.ResponseHeaders"];
+			var headers = (IDictionary<string, string[]>)owinContext["owin.ResponseHeaders"];
 
 			//TODO: Can headers length exceed the 65535 content limit of a fastcgi record?
 			//WARNING: We may at this point have all the response written.. it would be nice to
@@ -128,7 +134,7 @@ namespace FastCgiServer
 			//TODO: When receiving a lot of stdin records, we really shouldn't write them to the same Stream,
 			// because a lot of copying would occur needlessly.
 			// We could, instead, wrap all stdin records' Streams in another Stream, and reset the RequestBody stream.
-			owinParameters.RequestBody = rec.ContentStream;
+			owinContext.RequestBody = rec.ContentStream;
 
 			// Only respond if the last empty stdin was received
 			if (Status != ConnectionStatus.EmptyStdinReceived)
@@ -139,19 +145,19 @@ namespace FastCgiServer
 			// will then have a method to enumerate these streams, being one stdout record built for each.
 			//ALTHOUGH: The StreamWrapper idea is not so good if some middleware changes the underlying stream.. It is not clear 
 			// if this is valid in the specs, but it seems safe to assume it is not valid.
-			var responseStream = new OwinResponseStream<RecordContentsStream>();
+			var responseStream = new FragmentedResponseStream<RecordContentsStream>();
 
 			// Sign up for the first write, because we need to send the headers when that happens, and sign up to send
 			// general data when records fill up
 			responseStream.OnFirstWrite += SendHeaders;
 			responseStream.OnStreamFill += SendStdoutRecord;
-			owinParameters.ResponseBody = responseStream;
+			owinContext.ResponseBody = responseStream;
 
 			// Now pass it to the Owin pipeline
 			Task applicationResponse;
 			try
 			{
-				applicationResponse = PipelineEntry(owinParameters);
+				applicationResponse = PipelineEntry(owinContext);
 			}
 			catch (Exception e)
 			{
@@ -206,7 +212,10 @@ namespace FastCgiServer
 			if (rec.RecordType == RecordType.FCGIEndRequest)
 				Status = ConnectionStatus.EndRequestSent;
 
-			Request.Send(rec);
+			if (Request.Send(rec) == false)
+			{
+				cancellationSource.Cancel();
+			}
 		}
 
 		public FCgiRequest (Request req, Record beginRequestRecord, Func<IDictionary<string, object>, Task> pipelineEntry)
@@ -225,7 +234,6 @@ namespace FastCgiServer
 			Request = req;
 			PipelineEntry = pipelineEntry;
 			ApplicationMustCloseConnection = beginRequestRecord.BeginRequest.ApplicationMustCloseConnection;
-			ReceivedStdinRecords = new LinkedList<Record>();
 		}
 	}
 }

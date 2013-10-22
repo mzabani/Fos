@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.IO;
 
-namespace FastCgiServer
+namespace FastCgiServer.Owin
 {
 	/// <summary>
 	/// This class is a stub that can be used to define a 404 error page. Register this before your application's middleware.
@@ -22,7 +22,7 @@ namespace FastCgiServer
 
 			return completionTask.ContinueWith(t =>
 			{
-				var prms = (OwinParameters) owinParameters;
+				var prms = (OwinContext) owinParameters;
 				
 				int httpStatusCode;
 				try

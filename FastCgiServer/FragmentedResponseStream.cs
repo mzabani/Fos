@@ -14,7 +14,7 @@ namespace FastCgiServer
 	/// until streams fill up to 65535 bytes (FastCgi's content size limit of a record), then instantiating
 	/// a new Stream of type <typeparamref name="T" /> and writing to it after that, and so on.
 	/// </summary>
-	class OwinResponseStream<T> : Stream
+	class FragmentedResponseStream<T> : Stream
 		where T : Stream, new()
 	{
 		const int maxStreamLength = 65535;
@@ -132,7 +132,7 @@ namespace FastCgiServer
 		/// </summary>
 		public event StreamFilledEvent<T> OnStreamFill;
 
-		public OwinResponseStream ()
+		public FragmentedResponseStream ()
 		{
 			underlyingStreams = new LinkedList<T>();
 			lastStream = new T();

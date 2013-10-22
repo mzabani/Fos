@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 
-namespace FastCgiServer
+namespace FastCgiServer.Owin
 {
 	class OwinMiddleware
 	{
@@ -57,37 +57,43 @@ namespace FastCgiServer
 				var invokeMethod = MiddlewareType.GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).FirstOrDefault(m => m.Name == "Invoke" && m.ReturnType == typeof(Task));
 				if (invokeMethod == null)
 					throw new Exception("The next middleware does not have an appropriate Invoke method");
-				
-				try
-				{
-					Delegate d = Delegate.CreateDelegate(typeof(Func<IDictionary<string, object>, Task>), obj, "Invoke");
-					_BuiltHandler = (Func<IDictionary<string, object>, Task>) d;
-				}
-				catch (Exception e)
-				{
-					Console.WriteLine(e);
-					throw;
-				}
+
+				Delegate d = Delegate.CreateDelegate(typeof(Func<IDictionary<string, object>, Task>), obj, "Invoke");
+				_BuiltHandler = (Func<IDictionary<string, object>, Task>) d;
 			}
 			else
 			{
-				//TODO: How do we do this? Let's hope this is a Func<OwinHandler, OwinHandler>, the parameter to be passed
-				// being the next handler
-				var typedHandler = UntypedHandler as Func<Func<IDictionary<string, object>, Task>, Func<IDictionary<string, object>, Task>>;
-				
-				try
+				//TODO: What kind of delegate can we accept?
+
+				// NancyFx uses the delegate below
+				var typedHandler1 = UntypedHandler as Func<Func<IDictionary<string, object>, Task>, Func<IDictionary<string, object>, Task>>;
+
+				if (typedHandler1 != null)
 				{
 					_BuiltHandler = ((IDictionary<string, object> owinParams) => {
-						var func = typedHandler(Next == null ? null : Next.Handler);
+						var func = typedHandler1(Next == null ? null : Next.Handler);
 						
 						return func(owinParams);
 					});
+
+					return;
 				}
-				catch (Exception e)
+
+				// Simple.Web uses this type of delegate
+				var typedHandler2 = UntypedHandler as Func<IDictionary<string, object>, Func<IDictionary<string, object>, Task>, Task>;
+				if (typedHandler2 != null)
 				{
-					Console.WriteLine(e);
-					throw;
+					_BuiltHandler = ((IDictionary<string, object> owinParams) => {
+						var returnTask = typedHandler2(owinParams, Next == null ? null : Next.Handler);
+
+						return returnTask;
+					});
+
+					return;
 				}
+
+
+				throw new NotSupportedException("Delegate type " + UntypedHandler + " is not supported");
 			}
 		}
 
