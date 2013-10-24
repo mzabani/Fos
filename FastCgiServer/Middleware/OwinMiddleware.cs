@@ -63,7 +63,7 @@ namespace FastCgiServer.Owin
 			}
 			else
 			{
-				//TODO: What kind of delegate can we accept?
+				//TODO: What kind of delegate should we accept?
 
 				// NancyFx uses the delegate below
 				var typedHandler1 = UntypedHandler as Func<Func<IDictionary<string, object>, Task>, Func<IDictionary<string, object>, Task>>;

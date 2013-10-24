@@ -32,7 +32,12 @@ namespace FastCgiServer.Owin
 			}
 			else
 			{
-				newMiddleware = new OwinMiddleware((Type)middleware, args);
+				Type typeMiddleware = middleware as Type;
+
+				if (typeMiddleware != null)
+					newMiddleware = new OwinMiddleware(typeMiddleware, args);
+				else
+					throw new ArgumentException("The middleware to be used needs either to be a Type or a Delegate");
 			}
 
 			// Update the chain of middleware

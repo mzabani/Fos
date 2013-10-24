@@ -14,7 +14,7 @@ namespace FastCgiServer
 	/// until streams fill up to 65535 bytes (FastCgi's content size limit of a record), then instantiating
 	/// a new Stream of type <typeparamref name="T" /> and writing to it after that, and so on.
 	/// </summary>
-	class FragmentedResponseStream<T> : Stream
+	internal class FragmentedResponseStream<T> : Stream
 		where T : Stream, new()
 	{
 		const int maxStreamLength = 65535;
@@ -49,7 +49,40 @@ namespace FastCgiServer
 		}
 		public override int Read (byte[] buffer, int offset, int count)
 		{
-			throw new NotImplementedException();
+			throw new NotImplementedException("Read must advance some form of state in here.. not ready yet");
+
+			/*
+			int firstStreamIdx, firstStreamOffset, firstStreamCount;
+
+			firstStreamIdx = offset / maxStreamLength;
+			firstStreamOffset = offset % maxStreamLength;
+			firstStreamCount = maxStreamLength - firstStreamOffset;
+			if (firstStreamCount > count)
+				firstStreamCount = count;
+
+			using (var streamEnumerator = underlyingStreams.GetEnumerator())
+			{
+				for (int i = 0; i <= firstStreamIdx; ++i)
+					streamEnumerator.MoveNext();
+
+				int totalBytesRead = 0;
+				T firstStream = streamEnumerator.Current;
+				firstStream.Read(buffer, firstStreamOffset, firstStreamCount);
+				totalBytesRead += firstStreamCount;
+
+				while (totalBytesRead != count)
+				{
+					if (!streamEnumerator.MoveNext())
+						throw new ArgumentException("You are reading too much. We don't have all these bytes available");
+
+					T stream = streamEnumerator.Current;
+					int bytesToRead = count - totalBytesRead;
+					if (bytesToRead > maxStreamLength)
+						bytesToRead = maxStreamLength;
+					stream.Read(buffer, totalBytesRead, bytesToRead);
+					totalBytesRead += bytesToRead;
+				}
+			}*/
 		}
 		public override long Seek (long offset, SeekOrigin origin)
 		{
@@ -61,33 +94,31 @@ namespace FastCgiServer
 		}
 		public override void Write (byte[] buffer, int offset, int count)
 		{
-			if (count + lastStream.Length >= maxStreamLength)
+			int bytesCopied = 0;
+			while (bytesCopied != count)
 			{
 				int bytesToCopy = maxStreamLength - (int)lastStream.Length;
-				lastStream.Write(buffer, offset, bytesToCopy);
-				if (!hasBeenWrittenTo)
-				{
-					hasBeenWrittenTo = true;
-					OnFirstWrite();
-				}
-				OnStreamFill(lastStream);
+				if (bytesToCopy > count - bytesCopied)
+					bytesToCopy = count - bytesCopied;
 
-				// New lastStream
-				//TODO: Someone could be writing more than 2*65535 bytes, requiring a loop here..
-				lastStream = new T();
-				underlyingStreams.AddLast(lastStream);
-				if (count - bytesToCopy > 0)
+				if (bytesToCopy > 0)
 				{
-					lastStream.Write(buffer, offset + bytesToCopy, count - bytesToCopy);
+					lastStream.Write(buffer, offset + bytesCopied, bytesToCopy);
+					bytesCopied += bytesToCopy;
+					if (!hasBeenWrittenTo)
+					{
+						hasBeenWrittenTo = true;
+						OnFirstWrite();
+					}
 				}
-			}
-			else
-			{
-				lastStream.Write(buffer, offset, count);
-				if (!hasBeenWrittenTo)
+
+				if (lastStream.Length == maxStreamLength && bytesCopied < count)
 				{
-					hasBeenWrittenTo = true;
-					OnFirstWrite();
+					OnStreamFill(lastStream);
+
+					// New lastStream
+					lastStream = new T();
+					underlyingStreams.AddLast(lastStream);
 				}
 			}
 		}
@@ -139,6 +170,7 @@ namespace FastCgiServer
 			underlyingStreams.AddLast(lastStream);
 			hasBeenWrittenTo = false;
 			OnFirstWrite = delegate {};
+			OnStreamFill = delegate {};
 		}
 	}
 }

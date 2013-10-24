@@ -3,12 +3,18 @@ Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FastCgiServer", "FastCgiServer\FastCgiServer.csproj", "{768202EE-B788-4265-B808-09DEACC99839}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FastCgiServer.Tests", "FastCgiServer.Tests\FastCgiServer.Tests.csproj", "{565BC563-2FE7-4186-81AC-33AFA064C497}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{565BC563-2FE7-4186-81AC-33AFA064C497}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{565BC563-2FE7-4186-81AC-33AFA064C497}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{565BC563-2FE7-4186-81AC-33AFA064C497}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{565BC563-2FE7-4186-81AC-33AFA064C497}.Release|Any CPU.Build.0 = Release|Any CPU
 		{768202EE-B788-4265-B808-09DEACC99839}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{768202EE-B788-4265-B808-09DEACC99839}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{768202EE-B788-4265-B808-09DEACC99839}.Release|Any CPU.ActiveCfg = Release|Any CPU
