@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 
-namespace FastCgiServer.Owin
+namespace Fos.Owin
 {
 	class OwinMiddleware
 	{
@@ -47,7 +47,7 @@ namespace FastCgiServer.Owin
 				}
 				
 				object[] ctorArgs = new object[ctor.GetParameters().Length];
-				ctorArgs[0] = Next;
+				ctorArgs[0] = Next == null ? null : Next.Handler;
 				Array.Copy(Args, 0, ctorArgs, 1, ctorArgs.Length - 1);
 				
 				var obj = ctor.Invoke(ctorArgs);

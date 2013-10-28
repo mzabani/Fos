@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace FastCgiServer.Owin
+namespace Fos.Owin
 {
 	class FCgiOwinRoot
 	{

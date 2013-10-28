@@ -1,10 +1,10 @@
 using System;
 using System.Linq;
 using NUnit.Framework;
-using FastCgiServer;
+using Fos;
 using System.IO;
 
-namespace FastCgiServer.Tests
+namespace Fos.Tests
 {
 	[TestFixture]
 	public class Test

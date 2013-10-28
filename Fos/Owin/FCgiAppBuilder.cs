@@ -1,13 +1,16 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Owin;
 
-namespace FastCgiServer.Owin
+namespace Fos.Owin
 {
 	public class FCgiAppBuilder : IAppBuilder
 	{
-		Dictionary<string, object> emptyProperties;
+		Dictionary<string, object> properties;
+
+		public CancellationToken OnAppDisposing { get; private set; }
 
 		FCgiOwinRoot RootMiddleware;
 
@@ -16,10 +19,14 @@ namespace FastCgiServer.Owin
 		/// </summary>
 		OwinMiddleware LastMiddleware;
 
-		public FCgiAppBuilder ()
+		public FCgiAppBuilder(CancellationToken cancelToken)
 		{
-			emptyProperties = new Dictionary<string, object>();
+			properties = new Dictionary<string, object>();
 			RootMiddleware = new FCgiOwinRoot();
+
+			//WARN: Non standard Owin header. Used by Nancy
+			OnAppDisposing = cancelToken;
+			properties.Add("host.OnAppDisposing", cancelToken);
 		}
 
 		public IAppBuilder Use (object middleware, params object[] args)
@@ -58,17 +65,17 @@ namespace FastCgiServer.Owin
 				return (Func<IDictionary<string, object>, Task>)RootMiddleware.Invoke;
 			}
 			else
-				throw new ArgumentException("Only Func<IDictionary<string, object>, Task> is supported right now");
+				throw new NotSupportedException("Only Func<IDictionary<string, object>, Task> is supported right now");
 		}
 
 		public IAppBuilder New ()
 		{
-			throw new NotImplementedException ();
+			return new FCgiAppBuilder(OnAppDisposing);
 		}
 
 		public IDictionary<string, object> Properties {
 			get {
-				return emptyProperties;
+				return properties;
 			}
 		}
 	}

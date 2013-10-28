@@ -2,7 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Owin;
 
-namespace FastCgiServer.Owin
+namespace Fos.Owin
 {
 	public static class ExtensionMethods
 	{

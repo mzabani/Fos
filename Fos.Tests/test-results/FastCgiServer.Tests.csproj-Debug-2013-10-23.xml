@@ -77,6 +77,20 @@ Execution time: 0.03ms</Message>
 
 Execution time: 0.09ms</Message>
     </UnitTestResult>
+    <UnitTestResult>
+      <TestDate>2013-10-23T22:54:24</TestDate>
+      <Passed>2</Passed>
+      <Errors>0</Errors>
+      <Failures>0</Failures>
+      <Inconclusive>0</Inconclusive>
+      <NotRunnable>0</NotRunnable>
+      <Skipped>0</Skipped>
+      <Ignored>0</Ignored>
+      <Time />
+      <Message>Test successful
+
+Execution time: 0.10ms</Message>
+    </UnitTestResult>
   </Results>
   <Tests>
     <TestRecord Name="FastCgiServer">
@@ -145,6 +159,20 @@ Execution time: 0.03ms</Message>
         </UnitTestResult>
         <UnitTestResult>
           <TestDate>2013-10-23T22:50:47</TestDate>
+          <Passed>2</Passed>
+          <Errors>0</Errors>
+          <Failures>0</Failures>
+          <Inconclusive>0</Inconclusive>
+          <NotRunnable>0</NotRunnable>
+          <Skipped>0</Skipped>
+          <Ignored>0</Ignored>
+          <Time />
+          <Message>Test successful
+
+Execution time: 0.09ms</Message>
+        </UnitTestResult>
+        <UnitTestResult>
+          <TestDate>2013-10-23T22:54:24</TestDate>
           <Passed>2</Passed>
           <Errors>0</Errors>
           <Failures>0</Failures>
@@ -237,6 +265,20 @@ Execution time: 0.03ms</Message>
 
 Execution time: 0.09ms</Message>
             </UnitTestResult>
+            <UnitTestResult>
+              <TestDate>2013-10-23T22:54:24</TestDate>
+              <Passed>2</Passed>
+              <Errors>0</Errors>
+              <Failures>0</Failures>
+              <Inconclusive>0</Inconclusive>
+              <NotRunnable>0</NotRunnable>
+              <Skipped>0</Skipped>
+              <Ignored>0</Ignored>
+              <Time />
+              <Message>Test successful
+
+Execution time: 0.09ms</Message>
+            </UnitTestResult>
           </Results>
           <Tests>
             <TestRecord Name="Test">
@@ -316,6 +358,20 @@ Execution time: 0.02ms</Message>
                   <Message>Test successful
 
 Execution time: 0.08ms</Message>
+                </UnitTestResult>
+                <UnitTestResult>
+                  <TestDate>2013-10-23T22:54:24</TestDate>
+                  <Passed>2</Passed>
+                  <Errors>0</Errors>
+                  <Failures>0</Failures>
+                  <Inconclusive>0</Inconclusive>
+                  <NotRunnable>0</NotRunnable>
+                  <Skipped>0</Skipped>
+                  <Ignored>0</Ignored>
+                  <Time />
+                  <Message>Test successful
+
+Execution time: 0.09ms</Message>
                 </UnitTestResult>
               </Results>
               <Tests>
@@ -454,7 +510,24 @@ Execution time: 0.02ms</Message>
                       <ConsoleOutput />
                       <ConsoleError />
                     </UnitTestResult>
+                    <UnitTestResult>
+                      <TestDate>2013-10-23T22:54:24</TestDate>
+                      <Passed>1</Passed>
+                      <Errors>0</Errors>
+                      <Failures>0</Failures>
+                      <Inconclusive>0</Inconclusive>
+                      <NotRunnable>0</NotRunnable>
+                      <Skipped>0</Skipped>
+                      <Ignored>0</Ignored>
+                      <Time />
+                      <Message>Test successful
+
+Execution time: 0.02ms</Message>
+                      <ConsoleOutput />
+                      <ConsoleError />
+                    </UnitTestResult>
                   </Results>
+                  <Tests />
                 </TestRecord>
                 <TestRecord Name="OnFirstWriteAndOnStreamFillEvents">
                   <Results>
@@ -506,7 +579,24 @@ Execution time: 0.00ms</Message>
                       <ConsoleOutput />
                       <ConsoleError />
                     </UnitTestResult>
+                    <UnitTestResult>
+                      <TestDate>2013-10-23T22:54:24</TestDate>
+                      <Passed>1</Passed>
+                      <Errors>0</Errors>
+                      <Failures>0</Failures>
+                      <Inconclusive>0</Inconclusive>
+                      <NotRunnable>0</NotRunnable>
+                      <Skipped>0</Skipped>
+                      <Ignored>0</Ignored>
+                      <Time />
+                      <Message>Test successful
+
+Execution time: 0.00ms</Message>
+                      <ConsoleOutput />
+                      <ConsoleError />
+                    </UnitTestResult>
                   </Results>
+                  <Tests />
                 </TestRecord>
               </Tests>
             </TestRecord>

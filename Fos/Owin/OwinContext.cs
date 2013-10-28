@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 
-namespace FastCgiServer.Owin
+namespace Fos.Owin
 {
 	public class OwinContext : IDictionary<string, object>
 	{

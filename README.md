@@ -1,14 +1,14 @@
-FastCgiServer
+Fos (FastCgi Owin Server)
 ==========
 
-This a small .NET 4/Mono compatible FastCgi Owin Server written in C#. This means that it handles FastCgi requests from a webserver such as Nginx, passes it to a Owin pipeline and responds back to the webserver. It depends on the FastCgiNet library, another one of my GitHub repositories.
+This a small .NET 4/Mono compatible FastCgi Owin Server written in C#. This means that it handles FastCgi requests from a webserver such as Nginx, passes it to a Owin pipeline and responds back to the webserver. It depends on the [FastCgiNet](http://github.com/mzabani/FastCgiNet) library, another one of my GitHub repositories.
 
 Usage
 -----
 This software is a library for self hosting. This means that you should add a reference to it in your Owin Web Application, and run it like this:
 
 ```
-using FastCgiServer;
+using Fos;
 using Owin;
 
 public static void Main(string[] args)
@@ -30,6 +30,9 @@ static void applicationRegistration(IAppBuilder builder)
 }
 ```
 
+Building
+--------
+Currently there are no released versions. You have to clone this repository and [FastCgiNet](http://github.com/mzabani/FastCgiNet) as well, open both projects in a solution and update FastCgiServer's reference to FastCgiNet to the project in the solution. This solution can be opened in Monodevelop (this is the development IDE I use, in fact) or Visual Studio.
 
 Logging
 -------

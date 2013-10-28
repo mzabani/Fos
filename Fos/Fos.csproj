@@ -7,8 +7,8 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{768202EE-B788-4265-B808-09DEACC99839}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <RootNamespace>FastCgiServer</RootNamespace>
-    <AssemblyName>FastCgiServer</AssemblyName>
+    <RootNamespace>Fos</RootNamespace>
+    <AssemblyName>Fos</AssemblyName>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>True</DebugSymbols>
@@ -46,11 +46,13 @@
     <Compile Include="Owin\FCgiAppBuilder.cs" />
     <Compile Include="Owin\OwinContext.cs" />
     <Compile Include="FragmentedResponseStream.cs" />
+    <Compile Include="Logging\StderrLogger.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
     <Folder Include="Middleware\" />
     <Folder Include="Owin\" />
+    <Folder Include="Logging\" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

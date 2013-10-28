@@ -3,7 +3,7 @@ using System.Linq;
 using System.Collections.Generic;
 using System.IO;
 
-namespace FastCgiServer
+namespace Fos
 {
 	delegate void StreamWriteEvent();
 

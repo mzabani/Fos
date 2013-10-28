@@ -40,9 +40,9 @@
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
-    <ProjectReference Include="..\FastCgiServer\FastCgiServer.csproj">
+    <ProjectReference Include="..\Fos\Fos.csproj">
       <Project>{768202EE-B788-4265-B808-09DEACC99839}</Project>
-      <Name>FastCgiServer</Name>
+      <Name>Fos</Name>
     </ProjectReference>
   </ItemGroup>
 </Project>

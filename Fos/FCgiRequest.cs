@@ -1,12 +1,13 @@
 using System;
 using FastCgiNet;
-using FastCgiServer.Owin;
+using FastCgiNet.Logging;
+using Fos.Owin;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Threading;
 using System.IO;
 
-namespace FastCgiServer
+namespace Fos
 {
 	enum ConnectionStatus {
 		BeginRequestReceived,
@@ -31,6 +32,22 @@ namespace FastCgiServer
 		public Func<IDictionary<string, object>, Task> PipelineEntry { get; private set; }
 
 		private CancellationTokenSource cancellationSource;
+		private ILogger logger;
+		
+		private void SendErrorPage(Exception applicationEx)
+		{
+			const string errorPageFormat = "<html><head><title>Application Error</title></head><body><h1>Application Error</h1><p>Your application could not process the request and threw the following exception:</p><p>{0}</p></body></html>";
+			string errorPage = string.Format(errorPageFormat, applicationEx);
+
+			owinContext.SetResponseHeader("Content-Type", "text/html");
+			if (owinContext.ContainsKey("owin.ResponseStatusCode") == false)
+				owinContext.Add("owin.ResponseStatusCode", 500);
+
+			using (var sw = new StreamWriter(owinContext.ResponseBody))
+			{
+				sw.Write(errorPage);
+			}
+		}
 
 		void SendEndRequest()
 		{
@@ -43,21 +60,13 @@ namespace FastCgiServer
 
 		void SendStdoutRecord(Stream contents)
 		{
-			//TODO: Something goes very wrong if contents is Stream.Null
-			if (contents != null)
+			if (contents == null)
+				throw new ArgumentNullException("contents");
+
+			using (var stdoutRec = new Record(RecordType.FCGIStdout, RequestId))
 			{
-				using (var stdoutRec = new Record(RecordType.FCGIStdout, RequestId))
-				{
-					stdoutRec.ContentStream = contents;
-					SendRecord(stdoutRec);
-				}
-			}
-			else
-			{
-				using (var stdoutRec = new Record(RecordType.FCGIStdout, RequestId))
-				{
-					SendRecord(stdoutRec);
-				}
+				stdoutRec.ContentStream = contents;
+				SendRecord(stdoutRec);
 			}
 		}
 
@@ -161,13 +170,17 @@ namespace FastCgiServer
 			}
 			catch (Exception e)
 			{
-				Console.WriteLine(e);
-				//TODO: Log it and send stderr records with the exception and an endrequest
+				if (logger != null)
+					logger.Error(e, "Owin Application error");
 
+				// Show the exception to the visitor
+				SendErrorPage(e);
+
+				// End the FastCgi connection
 				SendEndRequest();
 
 				// Return a task that indicates completion..
-				return Task.Factory.StartNew<bool>(() => true);
+				return Task.Factory.StartNew<bool>(() => ApplicationMustCloseConnection);
 			}
 
 			// Now set the actions to do when the response is ready
@@ -179,9 +192,13 @@ namespace FastCgiServer
 				}
 				catch (Exception e)
 				{
-					Console.WriteLine(e);
-					//TODO: Log it and send stderr records with the exception and an endrequest
-					
+					if (logger != null)
+						logger.Error(e, "Owin Application error");
+
+					// Show the exception to the visitor
+					SendErrorPage(e);
+
+					// End the FastCgi connection
 					SendEndRequest();
 					
 					// Return a task that indicates completion..
@@ -194,8 +211,7 @@ namespace FastCgiServer
 					SendStdoutRecord(lastStream);
 
 				// Send empty stdout record
-				//SendStdoutRecord(Stream.Null);
-				SendStdoutRecord(null);
+				SendStdoutRecord(Stream.Null);
 
 				SendEndRequest();
 
@@ -218,7 +234,7 @@ namespace FastCgiServer
 			}
 		}
 
-		public FCgiRequest (Request req, Record beginRequestRecord, Func<IDictionary<string, object>, Task> pipelineEntry)
+		public FCgiRequest (Request req, Record beginRequestRecord, Func<IDictionary<string, object>, Task> pipelineEntry, ILogger logger)
 		{
 			if (beginRequestRecord == null)
 				throw new ArgumentNullException("beginRequestRecord");
@@ -230,6 +246,7 @@ namespace FastCgiServer
 			if (pipelineEntry == null)
 				throw new ArgumentNullException("pipelineEntry");
 
+			this.logger = logger;
 			Status = ConnectionStatus.BeginRequestReceived;
 			Request = req;
 			PipelineEntry = pipelineEntry;

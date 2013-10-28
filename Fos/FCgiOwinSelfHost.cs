@@ -1,12 +1,13 @@
 using System;
 using FastCgiNet;
 using FastCgiNet.Logging;
-using FastCgiServer.Owin;
+using Fos.Owin;
 using Owin;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
+using System.Threading;
 
-namespace FastCgiServer
+namespace Fos
 {
 	/// <summary>
 	/// This is the class you need to use to host your web application. It will create a TCP Socket that receives FastCgi
@@ -20,13 +21,14 @@ namespace FastCgiServer
 		Func<IDictionary<string, object>, System.Threading.Tasks.Task> OwinPipelineEntry;
 		Action<IAppBuilder> ApplicationConfigure;
 		ILogger logger;
+		CancellationTokenSource onAppDisposal;
 
 		/// <summary>
 		/// Starts this FastCgi server! This method blocks.
 		/// </summary>
 		public void Start()
 		{
-			AppBuilder = new FCgiAppBuilder();
+			AppBuilder = new FCgiAppBuilder(onAppDisposal.Token);
 
 			// Configure the application and build our pipeline entry
 			ApplicationConfigure(AppBuilder);
@@ -49,7 +51,7 @@ namespace FastCgiServer
 
 		void OnReceiveBeginRequest(Request req, Record rec)
 		{
-			requestsStatuses[req] = new FCgiRequest(req, rec, OwinPipelineEntry);
+			requestsStatuses[req] = new FCgiRequest(req, rec, OwinPipelineEntry, logger);
 		}
 
 		void OnReceiveParams(Request req, Record rec) {
@@ -79,7 +81,11 @@ namespace FastCgiServer
 
 		public void Dispose()
 		{
-			fastCgiProgram.Dispose ();
+			// Tell the application the server is disposing
+			onAppDisposal.Cancel();
+			onAppDisposal.Dispose();
+
+			fastCgiProgram.Dispose();
 		}
 
 		/// <summary>
@@ -90,6 +96,7 @@ namespace FastCgiServer
 			ApplicationConfigure = configureMethod;
 			requestsStatuses = new ConcurrentDictionary<Request, FCgiRequest>();
 			fastCgiProgram = new FastCgiApplication();
+			onAppDisposal = new CancellationTokenSource();
 		}
 	}
 }
