@@ -15,18 +15,19 @@ namespace Fos
 	/// </summary>
 	public class FCgiOwinSelfHost : IDisposable
 	{
-		FastCgiApplication fastCgiProgram;
-		FCgiAppBuilder AppBuilder;
-		ConcurrentDictionary<Request, FCgiRequest> requestsStatuses;
-		Func<IDictionary<string, object>, System.Threading.Tasks.Task> OwinPipelineEntry;
-		Action<IAppBuilder> ApplicationConfigure;
-		ILogger logger;
-		CancellationTokenSource onAppDisposal;
+		private FastCgiApplication fastCgiProgram;
+		private FCgiAppBuilder AppBuilder;
+		private ConcurrentDictionary<Request, FCgiRequest> requestsStatuses;
+		private Func<IDictionary<string, object>, System.Threading.Tasks.Task> OwinPipelineEntry;
+		private Action<IAppBuilder> ApplicationConfigure;
+		private ILogger logger;
+		private CancellationTokenSource onAppDisposal;
 
 		/// <summary>
-		/// Starts this FastCgi server! This method blocks.
+		/// Starts this FastCgi server! This method only returns when the server is ready to accept connections.
 		/// </summary>
-		public void Start()
+		/// <param name="background">True if this method starts the server without blocking, false to block.</param>
+		public void Start(bool background)
 		{
 			AppBuilder = new FCgiAppBuilder(onAppDisposal.Token);
 
@@ -41,7 +42,23 @@ namespace Fos
 			if (logger != null)
 				fastCgiProgram.SetLogger(logger);
 
-			fastCgiProgram.Start();
+			if (!background)
+				fastCgiProgram.Start();
+			else
+				fastCgiProgram.StartInBackground();
+		}
+
+		/// <summary>
+		/// Notifies the application (in non-standard fashion) that the server is stopping and stops listening for connections, while
+		/// closing active connections abruptely.
+		/// </summary>
+		public void Stop()
+		{
+			// Tell the application the server is disposing
+			onAppDisposal.Cancel();
+			onAppDisposal.Dispose();
+
+			fastCgiProgram.Stop();
 		}
 
 		public void SetLogger(ILogger logger)
@@ -79,12 +96,20 @@ namespace Fos
 			fastCgiProgram.Bind(addr, port);
 		}
 
+#if __MonoCS__
+		/// <summary>
+		/// Defines the unix socket path to listen on.
+		/// </summary>
+		public void Bind(string socketPath)
+		{
+			fastCgiProgram.Bind(socketPath);
+		}
+#endif
+
 		public void Dispose()
 		{
-			// Tell the application the server is disposing
-			onAppDisposal.Cancel();
+			Stop();
 			onAppDisposal.Dispose();
-
 			fastCgiProgram.Dispose();
 		}
 

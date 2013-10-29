@@ -63,7 +63,7 @@ namespace Fos.Owin
 			}
 			else
 			{
-				//TODO: What kind of delegate should we accept?
+				//TODO: What kind of delegate should we accept? This code begs improvement
 
 				// NancyFx uses the delegate below
 				var typedHandler1 = UntypedHandler as Func<Func<IDictionary<string, object>, Task>, Func<IDictionary<string, object>, Task>>;
