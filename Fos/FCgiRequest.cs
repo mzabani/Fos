@@ -31,13 +31,31 @@ namespace Fos
 		public OwinContext owinContext { get; private set; }
 		public Func<IDictionary<string, object>, Task> PipelineEntry { get; private set; }
 
+		private FragmentedResponseStream<RecordContentsStream> ResponseBodyStream;
 		private CancellationTokenSource cancellationSource;
 		private ILogger logger;
-		
+
+		/// <summary>
+		/// Sends all parts of the response's body (no headers) that haven't been sent. If there is nothing to be sent,
+		/// this method does nothing (i.e. it does not send an empty FastCgi record).
+		/// </summary>
+		private void SendUnsentBodyResponse()
+		{
+			if (ResponseBodyStream == null)
+				throw new InvalidOperationException("No stdin records have been received yet, and as such the response body has not been set up.");
+
+			// Only the last unfilled stream has not been sent yet..
+			RecordContentsStream lastStream = ResponseBodyStream.LastUnfilledStream;
+			if (lastStream.Length == 0)
+				return;
+
+			SendStdoutRecord(lastStream);
+		}
+
 		private void SendErrorPage(Exception applicationEx)
 		{
 			const string errorPageFormat = "<html><head><title>Application Error</title></head><body><h1>Application Error</h1><p>Your application could not process the request and threw the following exception:</p><p>{0}</p></body></html>";
-			string errorPage = string.Format(errorPageFormat, applicationEx);
+			string errorPage = string.Format(errorPageFormat, applicationEx.ToString().Replace(System.Environment.NewLine, "<br />"));
 
 			owinContext.SetResponseHeader("Content-Type", "text/html");
 			if (owinContext.ContainsKey("owin.ResponseStatusCode") == false)
@@ -47,6 +65,24 @@ namespace Fos
 			{
 				sw.Write(errorPage);
 			}
+
+			SendUnsentBodyResponse();
+		}
+
+		private void SendEmptyResponsePage()
+		{
+			const string errorPage = "<html><head><title>Application Error</title></head><body><h1>Application Error</h1><p>The application did not set any headers or write a response</p></body></html>";
+			
+			owinContext.SetResponseHeader("Content-Type", "text/html");
+			if (owinContext.ContainsKey("owin.ResponseStatusCode") == false)
+				owinContext.Add("owin.ResponseStatusCode", 500);
+			
+			using (var sw = new StreamWriter(owinContext.ResponseBody))
+			{
+				sw.Write(errorPage);
+			}
+
+			SendUnsentBodyResponse();
 		}
 
 		void SendEndRequest()
@@ -154,13 +190,13 @@ namespace Fos
 			// will then have a method to enumerate these streams, being one stdout record built for each.
 			//ALTHOUGH: The StreamWrapper idea is not so good if some middleware changes the underlying stream.. It is not clear 
 			// if this is valid in the specs, but it seems safe to assume it is not valid.
-			var responseStream = new FragmentedResponseStream<RecordContentsStream>();
+			ResponseBodyStream = new FragmentedResponseStream<RecordContentsStream>();
 
 			// Sign up for the first write, because we need to send the headers when that happens, and sign up to send
 			// general data when records fill up
-			responseStream.OnFirstWrite += SendHeaders;
-			responseStream.OnStreamFill += SendStdoutRecord;
-			owinContext.ResponseBody = responseStream;
+			ResponseBodyStream.OnFirstWrite += SendHeaders;
+			ResponseBodyStream.OnStreamFill += SendStdoutRecord;
+			owinContext.ResponseBody = ResponseBodyStream;
 
 			// Now pass it to the Owin pipeline
 			Task applicationResponse;
@@ -206,9 +242,16 @@ namespace Fos
 				}
 
 				// Send the remaining contents if they haven't been sent (if they are not full)
-				RecordContentsStream lastStream = responseStream.LastUnfilledStream;
+				RecordContentsStream lastStream = ResponseBodyStream.LastUnfilledStream;
 				if (lastStream.Length > 0)
 					SendStdoutRecord(lastStream);
+				else
+				{
+					// The last unfilled stream is of size zero if and only if nothing was written to the output.
+					// This could be intended behavior from the application, unless of course the headers
+					// are not set either. If that is the case, then show an empty response error
+					SendEmptyResponsePage();
+				}
 
 				// Send empty stdout record
 				SendStdoutRecord(Stream.Null);

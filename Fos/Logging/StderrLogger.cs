@@ -19,24 +19,23 @@ namespace Fos.Logging
 		}
 		public void Error (Exception e)
 		{
-			Console.Error.WriteLine("[{0}] ERROR", DateTime.Now);
+			Console.Error.WriteLine("[{0}] ERROR: ", DateTime.Now);
 			Console.Error.WriteLine("THREW {0}", e);
 		}
 		public void Error (Exception e, string msg, params object[] prms)
 		{
-			Console.Error.WriteLine("[{0}] ERROR " + string.Format(msg, prms), DateTime.Now);
+			Console.Error.WriteLine("[{0}] ERROR: " + string.Format(msg, prms), DateTime.Now);
 			Console.Error.WriteLine("THREW {0}", e);
 		}
 		public void Fatal (Exception e)
 		{
-			Console.Error.WriteLine("[{0}] FATAL", DateTime.Now);
+			Console.Error.WriteLine("[{0}] FATAL: ", DateTime.Now);
 			Console.Error.WriteLine("THREW {0}", e);
 		}
 		public void Fatal (Exception e, string msg, params object[] prms)
 		{
-			Console.Error.WriteLine("[{0}] FATAL " + string.Format(msg, prms), DateTime.Now);
+			Console.Error.WriteLine("[{0}] FATAL: " + string.Format(msg, prms), DateTime.Now);
 			Console.Error.WriteLine("THREW {0}", e);
 		}
 	}
 }
-

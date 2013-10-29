@@ -31,7 +31,8 @@ namespace Fos
 		}
 
 		/// <summary>
-		/// The last unfilled stream that contains part of the response.
+		/// The last unfilled stream that contains part of the response. If this stream has length zero, then this stream
+		/// has never been written to.
 		/// </summary>
 		public T LastUnfilledStream
 		{
