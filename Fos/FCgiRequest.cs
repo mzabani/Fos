@@ -88,25 +88,36 @@ namespace Fos
 		void SendEndRequest()
 		{
 			// End request and connection
-			using (var endRequestRec = new Record(RecordType.FCGIEndRequest, RequestId))
-			{
-				SendRecord(endRequestRec);
-			}
+			var endRequestRec = new EndRequestRecord(RequestId);
+			SendRecord(endRequestRec);
 		}
 
-		void SendStdoutRecord(Stream contents)
+		/// <summary>
+		/// Sends a Stdout Record with its contents set to <paramref name="contents"/>. The stream passed is disposed
+		/// after the record is sent.
+		/// </summary>
+		/// <param name="contents">A stream with the record's contents. If null, an empty record is sent.</param> 
+		void SendStdoutRecord(RecordContentsStream contents)
 		{
 			if (contents == null)
-				throw new ArgumentNullException("contents");
-
-			using (var stdoutRec = new Record(RecordType.FCGIStdout, RequestId))
 			{
-				stdoutRec.ContentStream = contents;
-				SendRecord(stdoutRec);
+				using (var stdoutRec = new StdoutRecord(RequestId))
+				{
+					SendRecord(stdoutRec);
+				}
+			}
+			else
+			{
+				using (var stdoutRec = new StdoutRecord(RequestId))
+				{
+					contents.Seek(0, SeekOrigin.Begin);
+					stdoutRec.Contents = contents;
+					SendRecord(stdoutRec);
+				}
 			}
 		}
 
-		void TestRecord(Record rec)
+		void TestRecord(RecordBase rec)
 		{
 			if (rec == null)
 				throw new ArgumentNullException("rec");
@@ -114,7 +125,7 @@ namespace Fos
 				throw new ArgumentException("Request id of received record is different than this request's RequestId");
 		}
 
-		public void ReceiveParams(Record rec)
+		public void ReceiveParams(ParamsRecord rec)
 		{
 			TestRecord(rec);
 
@@ -135,9 +146,9 @@ namespace Fos
 			//TODO: Can headers length exceed the 65535 content limit of a fastcgi record?
 			//WARNING: We may at this point have all the response written.. it would be nice to
 			// send more than just the headers here, but everything we have written up to this point in a record
-			Record headersRecord = new Record(RecordType.FCGIStdout, RequestId);
+			var headersRecord = new StdoutRecord(RequestId);
 
-			using (var writer = new StreamWriter(headersRecord.ContentStream, System.Text.Encoding.ASCII))
+			using (var writer = new StreamWriter(headersRecord.Contents, System.Text.Encoding.ASCII))
 			{
 				foreach (var header in headers)
 				{
@@ -168,7 +179,7 @@ namespace Fos
 		/// The task's result indicates if the connection needs to be closed from the application's side.
 		/// </summary>
 		/// <remarks>This method can return null if there are more Stdin records yet to be received. In fact, the request is only passed to the Owin pipeline after all stdin records have been received.</remarks>
-		public Task<bool> ReceiveStdin(Record rec)
+		public Task<bool> ReceiveStdin(StdinRecord rec)
 		{
 			TestRecord(rec);
 
@@ -179,7 +190,7 @@ namespace Fos
 			//TODO: When receiving a lot of stdin records, we really shouldn't write them to the same Stream,
 			// because a lot of copying would occur needlessly.
 			// We could, instead, wrap all stdin records' Streams in another Stream, and reset the RequestBody stream.
-			owinContext.RequestBody = rec.ContentStream;
+			owinContext.RequestBody = rec.Contents;
 
 			// Only respond if the last empty stdin was received
 			if (Status != ConnectionStatus.EmptyStdinReceived)
@@ -220,14 +231,12 @@ namespace Fos
 			}
 
 			// Now set the actions to do when the response is ready
-			return Task.Factory.StartNew<bool>(() =>
+			return applicationResponse.ContinueWith<bool>(applicationTask =>
             {
-				try
+				if (applicationTask.IsFaulted)
 				{
-					applicationResponse.Wait();
-				}
-				catch (Exception e)
-				{
+					Exception e = applicationTask.Exception;
+
 					if (logger != null)
 						logger.Error(e, "Owin Application error");
 
@@ -238,7 +247,7 @@ namespace Fos
 					SendEndRequest();
 					
 					// Return a task that indicates completion..
-					return true;
+					return ApplicationMustCloseConnection;
 				}
 
 				// Send the remaining contents if they haven't been sent (if they are not full)
@@ -254,7 +263,7 @@ namespace Fos
 				}
 
 				// Send empty stdout record
-				SendStdoutRecord(Stream.Null);
+				SendStdoutRecord(null);
 
 				SendEndRequest();
 
@@ -266,7 +275,7 @@ namespace Fos
 		/// Use this method to send records internally, because it maintains state.
 		/// </summary>
 		/// <param name="rec">Rec.</param>
-		void SendRecord(Record rec)
+		void SendRecord(RecordBase rec)
 		{
 			if (rec.RecordType == RecordType.FCGIEndRequest)
 				Status = ConnectionStatus.EndRequestSent;
@@ -277,7 +286,7 @@ namespace Fos
 			}
 		}
 
-		public FCgiRequest (Request req, Record beginRequestRecord, Func<IDictionary<string, object>, Task> pipelineEntry, ILogger logger)
+		public FCgiRequest (Request req, BeginRequestRecord beginRequestRecord, Func<IDictionary<string, object>, Task> pipelineEntry, ILogger logger)
 		{
 			if (beginRequestRecord == null)
 				throw new ArgumentNullException("beginRequestRecord");
@@ -293,7 +302,7 @@ namespace Fos
 			Status = ConnectionStatus.BeginRequestReceived;
 			Request = req;
 			PipelineEntry = pipelineEntry;
-			ApplicationMustCloseConnection = beginRequestRecord.BeginRequest.ApplicationMustCloseConnection;
+			ApplicationMustCloseConnection = beginRequestRecord.ApplicationMustCloseConnection;
 		}
 	}
 }

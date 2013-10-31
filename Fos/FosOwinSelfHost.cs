@@ -13,9 +13,9 @@ namespace Fos
 	/// This is the class you need to use to host your web application. It will create a TCP Socket that receives FastCgi
 	/// connections from your web server, passing them to the Owin pipeline.
 	/// </summary>
-	public class FCgiOwinSelfHost : IDisposable
+	public class FosOwinSelfHost : IDisposable
 	{
-		private FastCgiApplication fastCgiProgram;
+		private FastCgiHostApplication fastCgiProgram;
 		private FCgiAppBuilder AppBuilder;
 		private ConcurrentDictionary<Request, FCgiRequest> requestsStatuses;
 		private Func<IDictionary<string, object>, System.Threading.Tasks.Task> OwinPipelineEntry;
@@ -66,16 +66,16 @@ namespace Fos
 			this.logger = logger;
 		}
 
-		void OnReceiveBeginRequest(Request req, Record rec)
+		void OnReceiveBeginRequest(Request req, BeginRequestRecord rec)
 		{
 			requestsStatuses[req] = new FCgiRequest(req, rec, OwinPipelineEntry, logger);
 		}
 
-		void OnReceiveParams(Request req, Record rec) {
+		void OnReceiveParams(Request req, ParamsRecord rec) {
 			requestsStatuses[req].ReceiveParams(rec);
 		}
 
-		void OnReceiveStdin(Request req, Record rec) {
+		void OnReceiveStdin(Request req, StdinRecord rec) {
 			var onCloseConnection = requestsStatuses[req].ReceiveStdin(rec);
 			onCloseConnection.ContinueWith(t =>
 			{
@@ -116,11 +116,11 @@ namespace Fos
 		/// <summary>
 		/// This constructor lets you specify the method to be executed to register your application's middleware.
 		/// </summary>
-		public FCgiOwinSelfHost(Action<IAppBuilder> configureMethod)
+		public FosOwinSelfHost(Action<IAppBuilder> configureMethod)
 		{
 			ApplicationConfigure = configureMethod;
 			requestsStatuses = new ConcurrentDictionary<Request, FCgiRequest>();
-			fastCgiProgram = new FastCgiApplication();
+			fastCgiProgram = new FastCgiHostApplication();
 			onAppDisposal = new CancellationTokenSource();
 		}
 	}

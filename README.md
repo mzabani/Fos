@@ -13,7 +13,7 @@ using Owin;
 
 public static void Main(string[] args)
 {
-	using (var fcgiSelfHost = new FCgiOwinSelfHost(applicationRegistration))
+	using (var fcgiSelfHost = new FosOwinSelfHost(applicationRegistration))
 	{
 		// Bind on 127.0.0.1, port 9000
 		fcgiSelfHost.Bind(System.Net.IPAddress.Loopback, 9000);
@@ -36,7 +36,7 @@ Currently there are no released versions. You have to clone this repository and 
 
 Error handling and logging
 --------------------------
-You can define a logger that is used internally when handling connections from the FastCgi Server and other operations. You just need to implement the FastCgiNet.Logging.ILogger interface and register your instance to your instance of FCgiOwinSelfHost with the SetLogger method. At this point, a lot of Debug information is logged, since this project is in its infancy. Please note:
+You can define a logger that is used internally when handling connections from the FastCgi Server and other operations. You just need to implement the FastCgiNet.Logging.ILogger interface and register your instance to your instance of FosOwinSelfHost with the SetLogger method. At this point, a lot of Debug information is logged, since this project is in its infancy. Please note:
 - If you have set a logger that implements IDisposable, it will be disposed when the server is disposed.
 - If the application throws an exception, Fos *will* display it to the visitor. If you don't want exceptions showing, add middleware that will handle exceptions first thing in your pipeline.
 

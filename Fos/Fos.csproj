@@ -37,7 +37,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.cs" />
-    <Compile Include="FCgiOwinSelfHost.cs" />
     <Compile Include="FCgiRequest.cs" />
     <Compile Include="Middleware\OwinMiddleware.cs" />
     <Compile Include="Middleware\PageNotFoundMiddleware.cs" />
@@ -47,6 +46,7 @@
     <Compile Include="Owin\OwinContext.cs" />
     <Compile Include="FragmentedResponseStream.cs" />
     <Compile Include="Logging\StderrLogger.cs" />
+    <Compile Include="FosOwinSelfHost.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

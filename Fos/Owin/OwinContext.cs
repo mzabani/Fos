@@ -140,13 +140,13 @@ namespace Fos.Owin
 		/// <summary>
 		/// Sets Owin parameters according to the received FastCgi Params record <paramref name="rec"/>.
 		/// </summary>
-		internal void AddParamsRecord(Record rec) {
+		internal void AddParamsRecord(ParamsRecord rec) {
 			if (rec == null)
 				throw new ArgumentNullException("rec");
 			else if (rec.RecordType != RecordType.FCGIParams)
 				throw new ArgumentException("The record supplied must be of type Params");
 
-			foreach (var nameValuePair in rec.NamesAndValues.Content)
+			foreach (var nameValuePair in rec.Parameters)
 			{
 				if (nameValuePair.Name == "SERVER_PROTOCOL")
 					SetOwinParameter("owin.RequestProtocol", nameValuePair.Value);
@@ -181,7 +181,7 @@ namespace Fos.Owin
 			{
 				return (Stream)parametersDictionary["owin.RequestBody"];
 			}
-			set
+			internal set
 			{
 				SetOwinParameter("owin.RequestBody", value);
 			}
@@ -193,7 +193,7 @@ namespace Fos.Owin
 			{
 				return (Stream)parametersDictionary["owin.ResponseBody"];
 			}
-			set
+			internal set
 			{
 				SetOwinParameter("owin.ResponseBody", value);
 			}
