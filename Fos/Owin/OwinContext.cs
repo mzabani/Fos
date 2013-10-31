@@ -137,25 +137,22 @@ namespace Fos.Owin
 				responseHeaders.Add(headerName, new string[1] { headerValue });
 		}
 
-		/// <summary>
-		/// Sets Owin parameters according to the received FastCgi Params record <paramref name="rec"/>.
-		/// </summary>
-		internal void AddParamsRecord(ParamsRecord rec) {
-			if (rec == null)
-				throw new ArgumentNullException("rec");
-			else if (rec.RecordType != RecordType.FCGIParams)
-				throw new ArgumentException("The record supplied must be of type Params");
-
-			foreach (var nameValuePair in rec.Parameters)
+		internal void SetOwinParametersFromFastCgiNvp(NameValuePair nameValuePair)
+		{
+			if (nameValuePair.Name == "SERVER_PROTOCOL")
+				SetOwinParameter("owin.RequestProtocol", nameValuePair.Value);
+			else if (nameValuePair.Name == "REQUEST_METHOD")
+				SetOwinParameter("owin.RequestMethod", nameValuePair.Value);
+			else if (nameValuePair.Name == "QUERY_STRING")
+				SetOwinParameter("owin.RequestQueryString", nameValuePair.Value);
+			else if (nameValuePair.Name == "HTTPS")
+				SetOwinParameter("owin.RequestScheme", "https");
+			else if (nameValuePair.Name == "DOCUMENT_URI")
 			{
-				if (nameValuePair.Name == "SERVER_PROTOCOL")
-					SetOwinParameter("owin.RequestProtocol", nameValuePair.Value);
-				else if (nameValuePair.Name == "REQUEST_METHOD")
-					SetOwinParameter("owin.RequestMethod", nameValuePair.Value);
-				else if (nameValuePair.Name == "QUERY_STRING")
-					SetOwinParameter("owin.RequestQueryString", nameValuePair.Value);
-				else if (nameValuePair.Name == "DOCUMENT_URI")
-				{
+				SetOwinParameter("owin.RequestPathBase", string.Empty);
+				SetOwinParameter("owin.RequestPath", nameValuePair.Value);
+				
+				/*
 					int lastSlashIdx = nameValuePair.Value.LastIndexOf('/');
 					if (lastSlashIdx == 0)
 					{
@@ -166,12 +163,37 @@ namespace Fos.Owin
 					{
 						SetOwinParameter("owin.RequestPathBase", nameValuePair.Value.Substring(0, lastSlashIdx));
 						SetOwinParameter("owin.RequestPath", nameValuePair.Value.Substring(lastSlashIdx));
-					}
-				}
-				else if (nameValuePair.Name == "HTTP_HOST")
-				{
-					SetRequestHeader("Host", nameValuePair.Value);
-				}
+					}*/
+			}
+			
+			// HTTP_* parameters (these represent the http request header), such as:
+			// HTTP_CONNECTION: keep-alive
+			// HTTP_ACCEPT: text/html... etc.
+			// HTTP_USER_AGENT: Mozilla/5.0
+			// HTTP_ACCEPT_ENCODING
+			// HTTP_ACCEPT_LANGUAGE
+			// many others..
+			else if (nameValuePair.Name == "HTTP_HOST")
+			{
+				SetRequestHeader("Host", nameValuePair.Value);
+			}
+			else if (nameValuePair.Name == "HTTP_ACCEPT")
+				SetRequestHeader("Accept", nameValuePair.Value);
+			else if (nameValuePair.Name == "HTTP_USER_AGENT")
+				SetRequestHeader("User-Agent", nameValuePair.Value);
+		}
+
+		/// <summary>
+		/// Sets Owin parameters according to the received FastCgi Params record <paramref name="rec"/>.
+		/// </summary>
+		internal void AddParamsRecord(ParamsRecord rec) {
+			if (rec == null)
+				throw new ArgumentNullException("rec");
+
+			foreach (var nameValuePair in rec.Parameters)
+			{
+				//Console.WriteLine("{0}: {1}", nameValuePair.Name, nameValuePair.Value);
+				SetOwinParametersFromFastCgiNvp(nameValuePair);
 			}
 		}
 
@@ -231,7 +253,7 @@ namespace Fos.Owin
 			RequestBody = Stream.Null;
 			ResponseBody = Stream.Null;
 
-			//TODO: Do this right later on.. what about https?
+			// It is http (not https) until proven otherwise
 			SetOwinParameter("owin.RequestScheme", "http");
 		}
 	}

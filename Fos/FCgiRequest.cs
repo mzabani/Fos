@@ -290,12 +290,9 @@ namespace Fos
 		{
 			if (beginRequestRecord == null)
 				throw new ArgumentNullException("beginRequestRecord");
-			else if (beginRequestRecord.RecordType != RecordType.FCGIBeginRequest)
-				throw new ArgumentException("Record must be of BeginRequest type");
-
-			if (req == null)
+			else if (req == null)
 				throw new ArgumentNullException("req");
-			if (pipelineEntry == null)
+			else if (pipelineEntry == null)
 				throw new ArgumentNullException("pipelineEntry");
 
 			this.logger = logger;

@@ -47,6 +47,7 @@
     <Compile Include="Middleware\ThrowsExceptionApplication.cs" />
     <Compile Include="Browser\Browser.cs" />
     <Compile Include="Browser\BrowserResponse.cs" />
+    <Compile Include="OwinContext.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
