@@ -22,7 +22,6 @@ namespace Fos.Tests
 		public void UriCheck()
 		{
 			var ctx = new OwinContext("1.0", TokenSource.Token);
-			string url = "http://localhost/about/terms";
 
 			NameValuePair docUri = new NameValuePair("DOCUMENT_URI", "/about/terms");
 			NameValuePair host = new NameValuePair("HTTP_HOST", "localhost");
