@@ -46,7 +46,7 @@
     <Compile Include="Owin\OwinContext.cs" />
     <Compile Include="FragmentedResponseStream.cs" />
     <Compile Include="Logging\StderrLogger.cs" />
-    <Compile Include="FosOwinSelfHost.cs" />
+    <Compile Include="FosSelfHost.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

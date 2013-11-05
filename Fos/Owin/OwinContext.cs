@@ -151,19 +151,6 @@ namespace Fos.Owin
 			{
 				SetOwinParameter("owin.RequestPathBase", string.Empty);
 				SetOwinParameter("owin.RequestPath", nameValuePair.Value);
-				
-				/*
-					int lastSlashIdx = nameValuePair.Value.LastIndexOf('/');
-					if (lastSlashIdx == 0)
-					{
-						SetOwinParameter("owin.RequestPathBase", string.Empty);
-						SetOwinParameter("owin.RequestPath", nameValuePair.Value);
-					}
-					else
-					{
-						SetOwinParameter("owin.RequestPathBase", nameValuePair.Value.Substring(0, lastSlashIdx));
-						SetOwinParameter("owin.RequestPath", nameValuePair.Value.Substring(lastSlashIdx));
-					}*/
 			}
 			
 			// HTTP_* parameters (these represent the http request header), such as:
@@ -172,6 +159,7 @@ namespace Fos.Owin
 			// HTTP_USER_AGENT: Mozilla/5.0
 			// HTTP_ACCEPT_ENCODING
 			// HTTP_ACCEPT_LANGUAGE
+			// HTTP_COOKIE
 			// many others..
 			else if (nameValuePair.Name == "HTTP_HOST")
 			{
@@ -181,6 +169,8 @@ namespace Fos.Owin
 				SetRequestHeader("Accept", nameValuePair.Value);
 			else if (nameValuePair.Name == "HTTP_USER_AGENT")
 				SetRequestHeader("User-Agent", nameValuePair.Value);
+			else if (nameValuePair.Name == "HTTP_COOKIE")
+				SetRequestHeader("Cookie", nameValuePair.Value);
 		}
 
 		/// <summary>
@@ -192,7 +182,6 @@ namespace Fos.Owin
 
 			foreach (var nameValuePair in rec.Parameters)
 			{
-				//Console.WriteLine("{0}: {1}", nameValuePair.Name, nameValuePair.Value);
 				SetOwinParametersFromFastCgiNvp(nameValuePair);
 			}
 		}

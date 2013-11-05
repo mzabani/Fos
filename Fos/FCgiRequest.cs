@@ -165,6 +165,8 @@ namespace Fos
 						if (i < header.Value.Length - 1)
 							writer.Write(", ");
 					}
+
+					writer.Write("\r\n");
 				}
 
 				// Write two newlines

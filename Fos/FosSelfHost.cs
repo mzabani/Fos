@@ -13,7 +13,7 @@ namespace Fos
 	/// This is the class you need to use to host your web application. It will create a TCP Socket that receives FastCgi
 	/// connections from your web server, passing them to the Owin pipeline.
 	/// </summary>
-	public class FosOwinSelfHost : IDisposable
+	public class FosSelfHost : IDisposable
 	{
 		private FastCgiHostApplication fastCgiProgram;
 		private FCgiAppBuilder AppBuilder;
@@ -116,7 +116,7 @@ namespace Fos
 		/// <summary>
 		/// This constructor lets you specify the method to be executed to register your application's middleware.
 		/// </summary>
-		public FosOwinSelfHost(Action<IAppBuilder> configureMethod)
+		public FosSelfHost(Action<IAppBuilder> configureMethod)
 		{
 			ApplicationConfigure = configureMethod;
 			requestsStatuses = new ConcurrentDictionary<Request, FCgiRequest>();
