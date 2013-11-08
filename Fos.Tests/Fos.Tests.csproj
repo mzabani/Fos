@@ -39,15 +39,16 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="FragmentResponseStream.cs" />
     <Compile Include="CustomPages.cs" />
     <Compile Include="Startup.cs" />
     <Compile Include="Middleware\HelloWorldApplication.cs" />
     <Compile Include="Middleware\EmptyResponseApplication.cs" />
     <Compile Include="Middleware\ThrowsExceptionApplication.cs" />
     <Compile Include="Browser\Browser.cs" />
-    <Compile Include="Browser\BrowserResponse.cs" />
     <Compile Include="OwinContext.cs" />
+    <Compile Include="FragmentedResponseStreamTests.cs" />
+    <Compile Include="FragmentedRequestStreamTests.cs" />
+    <Compile Include="Browser\BrowserResponse.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

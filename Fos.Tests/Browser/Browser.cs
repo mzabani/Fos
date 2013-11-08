@@ -1,21 +1,38 @@
 using System;
 using FastCgiNet;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.IO;
 
 namespace Fos.Tests
 {
 	/// <summary>
 	/// This class helps you simulate a browser by creating the appropriate FastCgi records that a webserver would create.
 	/// </summary>
-	class Browser : IDisposable
+	class Browser
 	{
 		private System.Net.IPAddress FastCgiServer;
 		private int FastCgiServerPort;
 		private Socket SocketToUse;
 
-		public void ExecuteRequest(string url, string method)
+		private FragmentedRequestStream<RecordContentsStream> ResponseStream = new FragmentedRequestStream<RecordContentsStream>();
+		private bool RequestEnded = false;
+
+		private void ReceiveStdout(Request req, StdoutRecord record)
 		{
+			Console.WriteLine("Received stdout record with length {0}", record.ContentLength);
+			ResponseStream.AppendStream(record.Contents);
+		}
+		private void ReceiveEndRequest(Request req, EndRequestRecord record)
+		{
+			Console.WriteLine("Received end of request");
+			RequestEnded = true;
+		}
+
+		public BrowserResponse ExecuteRequest(string url, string method)
+		{
+			Console.WriteLine("execute request");
 			var uri = new Uri(url);
 			Socket sock = SocketToUse ?? new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
@@ -33,11 +50,15 @@ namespace Fos.Tests
 			}
 
 			// Params and empty params
-			var firstParams = new ParamsRecord(requestId);
-			firstParams.SetParamsFromUri(uri, method);
-			req.Send(firstParams);
-			var emptyParams = new ParamsRecord(requestId);
-			req.Send(emptyParams);
+			using (var firstParams = new ParamsRecord(requestId))
+			{
+				firstParams.SetParamsFromUri(uri, method);
+				req.Send(firstParams);
+			}
+			using (var emptyParams = new ParamsRecord(requestId))
+			{
+				req.Send(emptyParams);
+			}
 
 			// Empty Stdin for now.
 			//TODO: stdin body for POST
@@ -46,16 +67,20 @@ namespace Fos.Tests
 				req.Send(rec);
 			}
 
-			// Wait for answers and connection closing
+			// Read the answers
+			Console.WriteLine("before reader");
+			var reader = new SocketReader(sock);
+			reader.OnReceiveStdoutRecord += ReceiveStdout;
+			reader.OnReceiveEndRequestRecord += ReceiveEndRequest;
 
+			// Wait for things to be done.. busy waiting is bad..
+			reader.Start();
+			while (!RequestEnded)
+				;
 
 			sock.Close();
-		}
 
-		public void Dispose ()
-		{
-			if (SocketToUse != null)
-				SocketToUse.Dispose();
+			return new BrowserResponse(ResponseStream);
 		}
 
 		public Browser(Socket notConnectedSocket)

@@ -1,4 +1,7 @@
 *.dll
 *.mdb
 *.userprefs
-/FastCgiServer/bin
+/Fos/bin
+/Fos/obj
+/Fos.Tests/test-results
+/Fos.Tests/bin

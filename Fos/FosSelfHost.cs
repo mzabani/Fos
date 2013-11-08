@@ -77,6 +77,9 @@ namespace Fos
 
 		void OnReceiveStdin(Request req, StdinRecord rec) {
 			var onCloseConnection = requestsStatuses[req].ReceiveStdin(rec);
+			if (onCloseConnection == null)
+				return;
+
 			onCloseConnection.ContinueWith(t =>
 			{
 				//TODO: The task may have failed or something else happened, verify

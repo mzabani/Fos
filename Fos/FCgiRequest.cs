@@ -31,9 +31,54 @@ namespace Fos
 		public OwinContext owinContext { get; private set; }
 		public Func<IDictionary<string, object>, Task> PipelineEntry { get; private set; }
 
+		private FragmentedRequestStream<RecordContentsStream> RequestBodyStream;
 		private FragmentedResponseStream<RecordContentsStream> ResponseBodyStream;
-		private CancellationTokenSource cancellationSource;
-		private ILogger logger;
+		private CancellationTokenSource CancellationSource;
+		private ILogger Logger;
+
+		/// <summary>
+		/// This method should (and is) automatically called whenever any part of the body is to be sent. It sends the response's status code
+		/// and the response headers.
+		/// </summary>
+		void SendHeaders()
+		{
+			var headers = (IDictionary<string, string[]>)owinContext["owin.ResponseHeaders"];
+			
+			//TODO: Can headers length exceed the 65535 content limit of a fastcgi record?
+			//WARNING: We may at this point have all the response written.. it would be nice to
+			// send more than just the headers here, but everything we have written up to this point in a record
+			var headersRecord = new StdoutRecord(RequestId);
+			
+			using (var writer = new StreamWriter(headersRecord.Contents, System.Text.Encoding.ASCII))
+			{
+				// Response status code with special CGI header "Status"
+				writer.Write("Status: {0}\r\n", owinContext.ResponseStatusCode);
+
+				foreach (var header in headers)
+				{
+					writer.Write(header.Key);
+					writer.Write(": ");
+					
+					for (int i = 0; i < header.Value.Length; ++i)
+					{
+						string headerValuePart = header.Value[i];
+						
+						writer.Write(headerValuePart);
+						
+						// If it is not the last, add a comma
+						if (i < header.Value.Length - 1)
+							writer.Write(", ");
+					}
+					
+					writer.Write("\r\n");
+				}
+				
+				// There should be a newline after the last header. Add a second one before the body
+				writer.Write("\r\n");
+			}
+			
+			SendRecord(headersRecord);
+		}
 
 		/// <summary>
 		/// Sends all parts of the response's body (no headers) that haven't been sent. If there is nothing to be sent,
@@ -54,16 +99,14 @@ namespace Fos
 
 		private void SendErrorPage(Exception applicationEx)
 		{
-			const string errorPageFormat = "<html><head><title>Application Error</title></head><body><h1>Application Error</h1><p>Your application could not process the request and threw the following exception:</p><p>{0}</p></body></html>";
-			string errorPage = string.Format(errorPageFormat, applicationEx.ToString().Replace(System.Environment.NewLine, "<br />"));
+			var errorPage = new Fos.CustomPages.ApplicationErrorPage(applicationEx);
 
 			owinContext.SetResponseHeader("Content-Type", "text/html");
-			if (owinContext.ContainsKey("owin.ResponseStatusCode") == false)
-				owinContext.Add("owin.ResponseStatusCode", 500);
+			owinContext.ResponseStatusCode = "500 Internal Server Error";
 
 			using (var sw = new StreamWriter(owinContext.ResponseBody))
 			{
-				sw.Write(errorPage);
+				sw.Write(errorPage.Contents);
 			}
 
 			SendUnsentBodyResponse();
@@ -71,15 +114,14 @@ namespace Fos
 
 		private void SendEmptyResponsePage()
 		{
-			const string errorPage = "<html><head><title>Application Error</title></head><body><h1>Application Error</h1><p>The application did not set any headers or write a response</p></body></html>";
+			var emptyResponsePage = new Fos.CustomPages.EmptyResponsePage();
 			
 			owinContext.SetResponseHeader("Content-Type", "text/html");
-			if (owinContext.ContainsKey("owin.ResponseStatusCode") == false)
-				owinContext.Add("owin.ResponseStatusCode", 500);
+			owinContext.ResponseStatusCode = "500 Internal Server Error";
 			
 			using (var sw = new StreamWriter(owinContext.ResponseBody))
 			{
-				sw.Write(errorPage);
+				sw.Write(emptyResponsePage.Contents);
 			}
 
 			SendUnsentBodyResponse();
@@ -132,48 +174,11 @@ namespace Fos
 			Status = ConnectionStatus.ParamsReceived;
 			if (owinContext == null)
 			{
-				cancellationSource = new CancellationTokenSource();
-				owinContext = new OwinContext("1.0", cancellationSource.Token);
+				CancellationSource = new CancellationTokenSource();
+				owinContext = new OwinContext("1.0", CancellationSource.Token);
 			}
 
 			owinContext.AddParamsRecord(rec);
-		}
-
-		void SendHeaders()
-		{
-			var headers = (IDictionary<string, string[]>)owinContext["owin.ResponseHeaders"];
-
-			//TODO: Can headers length exceed the 65535 content limit of a fastcgi record?
-			//WARNING: We may at this point have all the response written.. it would be nice to
-			// send more than just the headers here, but everything we have written up to this point in a record
-			var headersRecord = new StdoutRecord(RequestId);
-
-			using (var writer = new StreamWriter(headersRecord.Contents, System.Text.Encoding.ASCII))
-			{
-				foreach (var header in headers)
-				{
-					writer.Write(header.Key);
-					writer.Write(": ");
-
-					for (int i = 0; i < header.Value.Length; ++i)
-					{
-						string headerValuePart = header.Value[i];
-
-						writer.Write(headerValuePart);
-
-						// If it is not the last, add a comma
-						if (i < header.Value.Length - 1)
-							writer.Write(", ");
-					}
-
-					writer.Write("\r\n");
-				}
-
-				// Write two newlines
-				writer.Write("\r\n\r\n");
-			}
-
-			SendRecord(headersRecord);
 		}
 
 		/// <summary>
@@ -185,14 +190,26 @@ namespace Fos
 		{
 			TestRecord(rec);
 
+			// If this is the first stdin record, prepare the request body
+			if (RequestBodyStream == null)
+			{
+				RequestBodyStream = new FragmentedRequestStream<RecordContentsStream>();
+				owinContext.RequestBody = RequestBodyStream;
+			}
+
+			RequestBodyStream.AppendStream(rec.Contents);
+
+			/*
+			using (var reader = new StreamReader(rec.Contents))
+			{
+				Console.WriteLine(reader.ReadToEnd());
+			}
+			rec.Contents.Seek(0, SeekOrigin.Begin);
+			*/
+
 			// Update status
 			if (rec.EmptyContentData)
 				Status = ConnectionStatus.EmptyStdinReceived;
-
-			//TODO: When receiving a lot of stdin records, we really shouldn't write them to the same Stream,
-			// because a lot of copying would occur needlessly.
-			// We could, instead, wrap all stdin records' Streams in another Stream, and reset the RequestBody stream.
-			owinContext.RequestBody = rec.Contents;
 
 			// Only respond if the last empty stdin was received
 			if (Status != ConnectionStatus.EmptyStdinReceived)
@@ -219,8 +236,8 @@ namespace Fos
 			}
 			catch (Exception e)
 			{
-				if (logger != null)
-					logger.Error(e, "Owin Application error");
+				if (Logger != null)
+					Logger.Error(e, "Owin Application error");
 
 				// Show the exception to the visitor
 				SendErrorPage(e);
@@ -239,8 +256,8 @@ namespace Fos
 				{
 					Exception e = applicationTask.Exception;
 
-					if (logger != null)
-						logger.Error(e, "Owin Application error");
+					if (Logger != null)
+						Logger.Error(e, "Owin Application error");
 
 					// Show the exception to the visitor
 					SendErrorPage(e);
@@ -284,7 +301,7 @@ namespace Fos
 
 			if (Request.Send(rec) == false)
 			{
-				cancellationSource.Cancel();
+				CancellationSource.Cancel();
 			}
 		}
 
@@ -297,7 +314,7 @@ namespace Fos
 			else if (pipelineEntry == null)
 				throw new ArgumentNullException("pipelineEntry");
 
-			this.logger = logger;
+			this.Logger = logger;
 			Status = ConnectionStatus.BeginRequestReceived;
 			Request = req;
 			PipelineEntry = pipelineEntry;

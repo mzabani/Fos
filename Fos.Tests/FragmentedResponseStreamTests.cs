@@ -7,7 +7,7 @@ using System.IO;
 namespace Fos.Tests
 {
 	[TestFixture]
-	public class Test
+	public class FragmentedResponseStreamTests
 	{
 		[Test]
 		public void OnFirstWriteAndOnStreamFillEvents()

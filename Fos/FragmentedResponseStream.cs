@@ -45,6 +45,7 @@ namespace Fos
 		#region Implemented abstract members of Stream
 		public override void Flush ()
 		{
+			//TODO: Perhaps this is should send what has been written through the socket..
 			foreach (var stream in underlyingStreams)
 				stream.Flush();
 		}
@@ -87,7 +88,10 @@ namespace Fos
 		}
 		public override long Seek (long offset, SeekOrigin origin)
 		{
-			throw new NotImplementedException();
+			throw new NotSupportedException("You can't seek the response stream");
+			//TODO: This is very wrong. We should seek all positions starting from the last to zero until we find the one that
+			// won't be rewinded completely, plus it disconsiders "origin"
+			lastStream.Position = offset - underlyingStreams.Take(underlyingStreams.Count - 1).Sum(s => s.Length);
 		}
 		public override void SetLength (long value)
 		{
@@ -148,7 +152,7 @@ namespace Fos
 				return underlyingStreams.Take(underlyingStreams.Count - 1).Sum(s => s.Length) + lastStream.Position;
 			}
 			set {
-				lastStream.Position = value - underlyingStreams.Take(underlyingStreams.Count - 1).Sum(s => s.Length);
+				Seek(value, SeekOrigin.Begin);
 			}
 		}
 		#endregion

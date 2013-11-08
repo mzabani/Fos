@@ -47,12 +47,17 @@
     <Compile Include="FragmentedResponseStream.cs" />
     <Compile Include="Logging\StderrLogger.cs" />
     <Compile Include="FosSelfHost.cs" />
+    <Compile Include="FragmentedRequestStream.cs" />
+    <Compile Include="CustomPages\EmptyResponsePage.cs" />
+    <Compile Include="CustomPages\ApplicationErrorPage.cs" />
+    <Compile Include="CustomPages\ICustomPage.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
     <Folder Include="Middleware\" />
     <Folder Include="Owin\" />
     <Folder Include="Logging\" />
+    <Folder Include="CustomPages\" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

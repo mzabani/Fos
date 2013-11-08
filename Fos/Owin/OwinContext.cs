@@ -6,7 +6,7 @@ using System.Threading;
 
 namespace Fos.Owin
 {
-	public class OwinContext : IDictionary<string, object>
+	internal class OwinContext : IDictionary<string, object>
 	{
 		/// <summary>
 		/// The parameters dictionary of the owin pipeline, built through this class's methods.
@@ -114,11 +114,16 @@ namespace Fos.Owin
 
 		public CancellationToken CancellationToken { get; private set; }
 
-		void SetOwinParameter(string key, object obj) {
+		public void Set(string key, object obj) {
 			if (parametersDictionary.ContainsKey(key))
 				parametersDictionary[key] = obj;
 			else
 				parametersDictionary.Add (key, obj);
+		}
+
+		public T Get<T>(string key)
+		{
+			return (T)this[key];
 		}
 
 		public void SetRequestHeader(string headerName, string headerValue)
@@ -139,18 +144,20 @@ namespace Fos.Owin
 
 		internal void SetOwinParametersFromFastCgiNvp(NameValuePair nameValuePair)
 		{
+			//Console.WriteLine("{0}: {1}", nameValuePair.Name, nameValuePair.Value);
+
 			if (nameValuePair.Name == "SERVER_PROTOCOL")
-				SetOwinParameter("owin.RequestProtocol", nameValuePair.Value);
+				Set("owin.RequestProtocol", nameValuePair.Value);
 			else if (nameValuePair.Name == "REQUEST_METHOD")
-				SetOwinParameter("owin.RequestMethod", nameValuePair.Value);
+				Set("owin.RequestMethod", nameValuePair.Value);
 			else if (nameValuePair.Name == "QUERY_STRING")
-				SetOwinParameter("owin.RequestQueryString", nameValuePair.Value);
-			else if (nameValuePair.Name == "HTTPS")
-				SetOwinParameter("owin.RequestScheme", "https");
+				Set("owin.RequestQueryString", nameValuePair.Value);
+			else if (nameValuePair.Name == "HTTPS" && nameValuePair.Value == "on")
+				Set("owin.RequestScheme", "https");
 			else if (nameValuePair.Name == "DOCUMENT_URI")
 			{
-				SetOwinParameter("owin.RequestPathBase", string.Empty);
-				SetOwinParameter("owin.RequestPath", nameValuePair.Value);
+				Set("owin.RequestPathBase", string.Empty);
+				Set("owin.RequestPath", nameValuePair.Value);
 			}
 			
 			// HTTP_* parameters (these represent the http request header), such as:
@@ -160,15 +167,32 @@ namespace Fos.Owin
 			// HTTP_ACCEPT_ENCODING
 			// HTTP_ACCEPT_LANGUAGE
 			// HTTP_COOKIE
-			// many others..
+			// many others.. see http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html and CGI Environment Variables
+			//TODO: Check if replacing _ by - and camel casing single words would do it for all headers
 			else if (nameValuePair.Name == "HTTP_HOST")
-			{
 				SetRequestHeader("Host", nameValuePair.Value);
-			}
 			else if (nameValuePair.Name == "HTTP_ACCEPT")
 				SetRequestHeader("Accept", nameValuePair.Value);
+			else if (nameValuePair.Name == "HTTP_ACCEPT_ENCODING")
+				SetRequestHeader("Accept-Encoding", nameValuePair.Value);
+			else if (nameValuePair.Name == "HTTP_ACCEPT_LANGUAGE")
+				SetRequestHeader("Accept-Language", nameValuePair.Value);
+			else if (nameValuePair.Name == "HTTP_CONNECTION")
+				SetRequestHeader("Connection", nameValuePair.Value);
+			else if (nameValuePair.Name == "HTTP_CONTENT_LENGTH")
+				SetRequestHeader("Content-Length", nameValuePair.Value);
+			else if (nameValuePair.Name == "HTTP_ORIGIN")
+				SetRequestHeader("Origin", nameValuePair.Value);
+			else if (nameValuePair.Name == "HTTP_X_REQUESTED_WITH")
+				SetRequestHeader("X-Requested-With", nameValuePair.Value);
 			else if (nameValuePair.Name == "HTTP_USER_AGENT")
 				SetRequestHeader("User-Agent", nameValuePair.Value);
+			else if (nameValuePair.Name == "HTTP_CONTENT_TYPE")
+				SetRequestHeader("Content-Type", nameValuePair.Value);
+			else if (nameValuePair.Name == "HTTP_REFERER")
+				SetRequestHeader("Referer", nameValuePair.Value);
+			else if (nameValuePair.Name == "HTTP_AUTHORIZATION")
+				SetRequestHeader("Authorization", nameValuePair.Value);
 			else if (nameValuePair.Name == "HTTP_COOKIE")
 				SetRequestHeader("Cookie", nameValuePair.Value);
 		}
@@ -194,7 +218,7 @@ namespace Fos.Owin
 			}
 			internal set
 			{
-				SetOwinParameter("owin.RequestBody", value);
+				Set("owin.RequestBody", value);
 			}
 		}
 
@@ -206,7 +230,46 @@ namespace Fos.Owin
 			}
 			internal set
 			{
-				SetOwinParameter("owin.ResponseBody", value);
+				Set("owin.ResponseBody", value);
+			}
+		}
+
+		/// <summary>
+		/// The response's status code. This could be "200 OK", for example.
+		/// </summary>
+		/// <value>The response's status code.</value>
+		public string ResponseStatusCode
+		{
+			get
+			{
+				int num;
+				if (this.ContainsKey("owin.ResponseStatusCode"))
+					num = Get<int>("owin.ResponseStatusCode");
+				else
+					num = 200;
+
+				string reason;
+				if (this.ContainsKey("owin.ResponseReasonPhrase"))
+				{
+					reason = Get<string>("owin.ResponseReasonPhrase");
+					return string.Format("{0} {1}", num, reason);
+				}
+				else
+					return num.ToString();
+			}
+			set
+			{
+				int firstSpaceIdx = value.IndexOf(" ");
+				if (firstSpaceIdx == -1)
+					Set("owin.ResponseStatusCode", int.Parse(value));
+				else
+				{
+					int num = int.Parse(value.Substring(0, firstSpaceIdx + 1));
+					string reason = value.Substring(firstSpaceIdx + 1);
+
+					Set("owin.ResponseStatusCode", num);
+					Set("owin.ResponseReasonPhrase", reason);
+				}
 			}
 		}
 
@@ -230,20 +293,20 @@ namespace Fos.Owin
 			parametersDictionary = new Dictionary<string, object>();
 			requestHeaders = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
 			responseHeaders = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
-			SetOwinParameter("owin.RequestHeaders", requestHeaders);
-			SetOwinParameter("owin.ResponseHeaders", responseHeaders);
+			Set("owin.RequestHeaders", requestHeaders);
+			Set("owin.ResponseHeaders", responseHeaders);
 
-			SetOwinParameter("owin.Version", owinVersion);
+			Set("owin.Version", owinVersion);
 
 			CancellationToken = token;
-			SetOwinParameter("owin.CallCancelled", token);
+			Set("owin.CallCancelled", token);
 
 			// Empty bodies
 			RequestBody = Stream.Null;
 			ResponseBody = Stream.Null;
 
 			// It is http (not https) until proven otherwise
-			SetOwinParameter("owin.RequestScheme", "http");
+			Set("owin.RequestScheme", "http");
 		}
 	}
 }
