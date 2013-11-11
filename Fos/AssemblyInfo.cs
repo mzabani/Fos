@@ -3,7 +3,6 @@ using System.Runtime.CompilerServices;
 
 // Information about this assembly is defined by the following attributes. 
 // Change them to the values specific to your project.
-[InternalsVisibleTo("Fos.Tests")]
 
 [assembly: AssemblyTitle("Server")]
 [assembly: AssemblyDescription("")]
@@ -26,3 +25,4 @@ using System.Runtime.CompilerServices;
 //[assembly: AssemblyDelaySign(false)]
 //[assembly: AssemblyKeyFile("")]
 
+[assembly: InternalsVisibleTo("Fos.Tests")]

@@ -1,7 +1,7 @@
 Fos (FastCgi Owin Server)
 ==========
 
-This a small .NET 4/Mono compatible FastCgi Owin Server written in C#. This means that it handles FastCgi requests from a webserver such as Nginx, passes it to a Owin pipeline and responds back to the webserver. It depends on the [FastCgiNet](http://github.com/mzabani/FastCgiNet) library, another one of my GitHub repositories.
+This a small .NET 4/Mono compatible FastCgi Owin Server written in C#. This means that it handles FastCgi requests from a webserver such as Nginx or IIS, passes it to a Owin pipeline and responds back to the webserver. It depends on the [FastCgiNet](http://github.com/mzabani/FastCgiNet) library, another one of my GitHub repositories.
 
 Usage
 -----
@@ -17,6 +17,9 @@ public static void Main(string[] args)
 	{
 		// Bind on 127.0.0.1, port 9000
 		fcgiSelfHost.Bind(System.Net.IPAddress.Loopback, 9000);
+
+		// If you're on *nix and prefer unix sockets
+		fcgiSelfHost.Bind("/tmp/fcgisocket.sock");
 
 		// Start the server.
 		fcgiSelfHost.Start(false);
@@ -36,7 +39,7 @@ Currently there are no released versions. You have to clone this repository and 
 
 Error handling and logging
 --------------------------
-You can define a logger that is used internally when handling connections from the FastCgi Server and other operations. You just need to implement the FastCgiNet.Logging.ILogger interface and register your instance to your instance of FosSelfHost with the SetLogger method. At this point, a lot of Debug information is logged, since this project is in its infancy. Please note:
+You can define a logger that is used internally when handling connections from the FastCgi Server and other operations. You just need to implement the Fos.Logging.IServerLogger interface and register your instance to your instance of FosSelfHost with the SetLogger method. Please note:
 - If you have set a logger that implements IDisposable, it will be disposed when the server is disposed.
 - If the application throws an exception, Fos *will* display it to the visitor. If you don't want exceptions showing, add middleware that will handle exceptions first thing in your pipeline.
 
@@ -51,15 +54,10 @@ Currently, this server seems to be compatible with NancyFx and Simple.Web (I'm n
 To application builders
 -----------------------
 If you intend to build an Owin compatible application and run it with this server, be aware of the following:
-- So far, the CancellationToken is signaled if and only if the FastCgi socket for the request has been closed
+- So far, the Owin CancellationToken found by the key "owin.CallCancelled" is signaled if and only if the FastCgi socket for the request has been closed
 
 Non standard extensions:
 - Fos' IAppBuilder implementation adds a CancellationToken to the Properties dictionary that is signaled when the server is stopped and/or disposed. You can reach this token by the key "host.OnAppDisposing"
-
-
-More
-----
-This is very early documentation (as you can see) and a very early release. This project should not yet be used on production under any circumstances.
 
 
 Goals

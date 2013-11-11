@@ -32,7 +32,7 @@ namespace Fos.Listener
 		{
 			get
 			{
-				return tcpListenSocket.IsBound || unixListenSocket.IsBound;
+				return (tcpListenSocket != null && tcpListenSocket.IsBound) || ( unixListenSocket != null && unixListenSocket.IsBound);
 			}
 		}
 		private IServerLogger Logger;
@@ -91,9 +91,9 @@ namespace Fos.Listener
 				{
 					// We want Select to return when either a new connection has arrived or when there is incoming socket data
 					List<Socket> socketsReadSet = OpenSockets.Keys.ToList();
-					if (tcpListenSocket.IsBound)
+					if (tcpListenSocket != null && tcpListenSocket.IsBound)
 						socketsReadSet.Add(tcpListenSocket);
-					if (unixListenSocket.IsBound)
+					if (unixListenSocket != null && unixListenSocket.IsBound)
 						socketsReadSet.Add(unixListenSocket);
 
 					Socket.Select(socketsReadSet, null, null, selectMaximumTime);
@@ -255,9 +255,9 @@ namespace Fos.Listener
 			if (!SomeListenSocketHasBeenBound)
 				throw new InvalidOperationException("You have to bind to some address or unix socket file first");
 
-			if (tcpListenSocket.IsBound)
+			if (tcpListenSocket != null && tcpListenSocket.IsBound)
 				tcpListenSocket.Listen(listenBacklog);
-			if (unixListenSocket.IsBound)
+			if (unixListenSocket != null && unixListenSocket.IsBound)
 				unixListenSocket.Listen(listenBacklog);
 
 			// Wait for connections without blocking
@@ -274,9 +274,9 @@ namespace Fos.Listener
 			if (!SomeListenSocketHasBeenBound)
 				throw new InvalidOperationException("You have to bind to some address or unix socket file first");
 
-			if (tcpListenSocket.IsBound)
+			if (tcpListenSocket != null && tcpListenSocket.IsBound)
 				tcpListenSocket.Listen(listenBacklog);
-			if (unixListenSocket.IsBound)
+			if (unixListenSocket != null && unixListenSocket.IsBound)
 				unixListenSocket.Listen(listenBacklog);
 
 			// Set this before waiting for connections
@@ -330,7 +330,9 @@ namespace Fos.Listener
 		public SocketListener ()
 		{
 			tcpListenSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+#if __MonoCs__
 			unixListenSocket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.IP); // man unix (7) says most unix implementations are safe on deliveryand order
+#endif
 
 			IsRunning = false;
 		}
