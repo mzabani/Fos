@@ -3,6 +3,7 @@ using FastCgiNet.Logging;
 
 namespace Fos.Logging
 {
+	/*
 	/// <summary>
 	/// This logger prints Fatal and Error messages to Stderr. Everything else is simply ignored.
 	/// </summary>
@@ -38,4 +39,5 @@ namespace Fos.Logging
 			Console.Error.WriteLine("THREW {0}", e);
 		}
 	}
+	*/
 }

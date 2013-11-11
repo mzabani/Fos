@@ -1,11 +1,11 @@
 using System;
-using FastCgiNet;
-using FastCgiNet.Logging;
-using Fos.Owin;
-using Owin;
 using System.Collections.Generic;
-using System.Collections.Concurrent;
 using System.Threading;
+using FastCgiNet;
+using Fos.Owin;
+using Fos.Listener;
+using Fos.Logging;
+using Owin;
 
 namespace Fos
 {
@@ -15,13 +15,12 @@ namespace Fos
 	/// </summary>
 	public class FosSelfHost : IDisposable
 	{
-		private FastCgiHostApplication fastCgiProgram;
+		private SocketListener FastCgiListener;
 		private FCgiAppBuilder AppBuilder;
-		private ConcurrentDictionary<Request, FCgiRequest> requestsStatuses;
 		private Func<IDictionary<string, object>, System.Threading.Tasks.Task> OwinPipelineEntry;
 		private Action<IAppBuilder> ApplicationConfigure;
-		private ILogger logger;
-		private CancellationTokenSource onAppDisposal;
+		private IServerLogger Logger;
+		private CancellationTokenSource OnAppDisposal;
 
 		/// <summary>
 		/// Starts this FastCgi server! This method only returns when the server is ready to accept connections.
@@ -29,65 +28,61 @@ namespace Fos
 		/// <param name="background">True if this method starts the server without blocking, false to block.</param>
 		public void Start(bool background)
 		{
-			AppBuilder = new FCgiAppBuilder(onAppDisposal.Token);
+			AppBuilder = new FCgiAppBuilder(OnAppDisposal.Token);
 
 			// Configure the application and build our pipeline entry
 			ApplicationConfigure(AppBuilder);
 			OwinPipelineEntry = (Func<IDictionary<string, object>, System.Threading.Tasks.Task>) AppBuilder.Build(typeof(Func<IDictionary<string, object>, System.Threading.Tasks.Task>));
 
-			fastCgiProgram.OnReceiveBeginRequestRecord += OnReceiveBeginRequest;
-			fastCgiProgram.OnReceiveParamsRecord += OnReceiveParams;
-			fastCgiProgram.OnReceiveStdinRecord += OnReceiveStdin;
+			FastCgiListener.OnReceiveBeginRequestRecord += OnReceiveBeginRequest;
+			FastCgiListener.OnReceiveParamsRecord += OnReceiveParams;
+			FastCgiListener.OnReceiveStdinRecord += OnReceiveStdin;
 
-			if (logger != null)
-				fastCgiProgram.SetLogger(logger);
+			if (Logger != null)
+				FastCgiListener.SetLogger(Logger);
 
 			if (!background)
-				fastCgiProgram.Start();
+				FastCgiListener.Start();
 			else
-				fastCgiProgram.StartInBackground();
+				FastCgiListener.StartInBackground();
 		}
 
 		/// <summary>
 		/// Notifies the application (in non-standard fashion) that the server is stopping and stops listening for connections, while
-		/// closing active connections abruptely.
+		/// closing active connections abruptly.
 		/// </summary>
 		public void Stop()
 		{
 			// Tell the application the server is disposing
-			onAppDisposal.Cancel();
-			onAppDisposal.Dispose();
+			OnAppDisposal.Cancel();
+			OnAppDisposal.Dispose();
 
-			fastCgiProgram.Stop();
+			FastCgiListener.Stop();
 		}
 
-		public void SetLogger(ILogger logger)
+		public void SetLogger(IServerLogger logger)
 		{
-			this.logger = logger;
+			this.Logger = logger;
 		}
 
-		void OnReceiveBeginRequest(Request req, BeginRequestRecord rec)
-		{
-			requestsStatuses[req] = new FCgiRequest(req, rec, OwinPipelineEntry, logger);
+		private void OnReceiveBeginRequest(FosRequest req, BeginRequestRecord rec) {
+			req.ApplicationPipelineEntry = OwinPipelineEntry;
 		}
 
-		void OnReceiveParams(Request req, ParamsRecord rec) {
-			requestsStatuses[req].ReceiveParams(rec);
+		private void OnReceiveParams(FosRequest req, ParamsRecord rec) {
+			req.ReceiveParams(rec);
 		}
 
-		void OnReceiveStdin(Request req, StdinRecord rec) {
-			var onCloseConnection = requestsStatuses[req].ReceiveStdin(rec);
+		private void OnReceiveStdin(FosRequest req, StdinRecord rec) {
+			var onCloseConnection = req.ReceiveStdin(rec);
 			if (onCloseConnection == null)
 				return;
 
 			onCloseConnection.ContinueWith(t =>
 			{
 				//TODO: The task may have failed or something else happened, verify
-				FCgiRequest trash;
-				requestsStatuses.TryRemove(req, out trash);
-				//TODO: Log failure to remove request from dictionary
 				if (t.Result)
-					req.CloseSocket();
+					req.Request.CloseSocket();
 			});
 		}
 
@@ -96,7 +91,7 @@ namespace Fos
 		/// </summary>
 		public void Bind(System.Net.IPAddress addr, int port)
 		{
-			fastCgiProgram.Bind(addr, port);
+			FastCgiListener.Bind(addr, port);
 		}
 
 #if __MonoCS__
@@ -105,15 +100,15 @@ namespace Fos
 		/// </summary>
 		public void Bind(string socketPath)
 		{
-			fastCgiProgram.Bind(socketPath);
+			FastCgiListener.Bind(socketPath);
 		}
 #endif
 
 		public void Dispose()
 		{
 			Stop();
-			onAppDisposal.Dispose();
-			fastCgiProgram.Dispose();
+			OnAppDisposal.Dispose();
+			FastCgiListener.Dispose();
 		}
 
 		/// <summary>
@@ -122,9 +117,8 @@ namespace Fos
 		public FosSelfHost(Action<IAppBuilder> configureMethod)
 		{
 			ApplicationConfigure = configureMethod;
-			requestsStatuses = new ConcurrentDictionary<Request, FCgiRequest>();
-			fastCgiProgram = new FastCgiHostApplication();
-			onAppDisposal = new CancellationTokenSource();
+			FastCgiListener = new SocketListener();
+			OnAppDisposal = new CancellationTokenSource();
 		}
 	}
 }

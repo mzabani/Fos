@@ -34,10 +34,10 @@
     <Reference Include="Owin">
       <HintPath>..\packages\Owin.1.0\lib\net40\Owin.dll</HintPath>
     </Reference>
+    <Reference Include="Mono.Posix" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.cs" />
-    <Compile Include="FCgiRequest.cs" />
     <Compile Include="Middleware\OwinMiddleware.cs" />
     <Compile Include="Middleware\PageNotFoundMiddleware.cs" />
     <Compile Include="Middleware\FCgiOwinRoot.cs" />
@@ -51,6 +51,12 @@
     <Compile Include="CustomPages\EmptyResponsePage.cs" />
     <Compile Include="CustomPages\ApplicationErrorPage.cs" />
     <Compile Include="CustomPages\ICustomPage.cs" />
+    <Compile Include="Listener\ByteReaderAndRequest.cs" />
+    <Compile Include="Listener\SocketListener.cs" />
+    <Compile Include="Listener\SocketHelper.cs" />
+    <Compile Include="Listener\FosRequest.cs" />
+    <Compile Include="Logging\StatsLogger.cs" />
+    <Compile Include="Logging\IServerLogger.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

@@ -1,13 +1,13 @@
 using System;
 using FastCgiNet;
-using FastCgiNet.Logging;
 using Fos.Owin;
+using Fos.Logging;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Threading;
 using System.IO;
 
-namespace Fos
+namespace Fos.Listener
 {
 	enum ConnectionStatus {
 		BeginRequestReceived,
@@ -16,7 +16,7 @@ namespace Fos
 		EndRequestSent
 	}
 
-	class FCgiRequest
+	internal class FosRequest
 	{
 		public Request Request { get; private set; }
 		public ushort RequestId
@@ -29,12 +29,16 @@ namespace Fos
 		public bool ApplicationMustCloseConnection { get; private set; }
 		public ConnectionStatus Status { get; private set; }
 		public OwinContext owinContext { get; private set; }
-		public Func<IDictionary<string, object>, Task> PipelineEntry { get; private set; }
 
+		/// <summary>
+		/// Sets the application's entry point. This must be set before receiving Stdin records.
+		/// </summary>
+		public Func<IDictionary<string, object>, Task> ApplicationPipelineEntry;
+
+		private IServerLogger Logger;
 		private FragmentedRequestStream<RecordContentsStream> RequestBodyStream;
 		private FragmentedResponseStream<RecordContentsStream> ResponseBodyStream;
 		private CancellationTokenSource CancellationSource;
-		private ILogger Logger;
 
 		/// <summary>
 		/// This method should (and is) automatically called whenever any part of the body is to be sent. It sends the response's status code
@@ -199,14 +203,6 @@ namespace Fos
 
 			RequestBodyStream.AppendStream(rec.Contents);
 
-			/*
-			using (var reader = new StreamReader(rec.Contents))
-			{
-				Console.WriteLine(reader.ReadToEnd());
-			}
-			rec.Contents.Seek(0, SeekOrigin.Begin);
-			*/
-
 			// Update status
 			if (rec.EmptyContentData)
 				Status = ConnectionStatus.EmptyStdinReceived;
@@ -232,12 +228,12 @@ namespace Fos
 			Task applicationResponse;
 			try
 			{
-				applicationResponse = PipelineEntry(owinContext);
+				applicationResponse = ApplicationPipelineEntry(owinContext);
 			}
 			catch (Exception e)
 			{
 				if (Logger != null)
-					Logger.Error(e, "Owin Application error");
+					Logger.LogApplicationError(e);
 
 				// Show the exception to the visitor
 				SendErrorPage(e);
@@ -257,7 +253,7 @@ namespace Fos
 					Exception e = applicationTask.Exception;
 
 					if (Logger != null)
-						Logger.Error(e, "Owin Application error");
+						Logger.LogApplicationError(e);
 
 					// Show the exception to the visitor
 					SendErrorPage(e);
@@ -305,19 +301,16 @@ namespace Fos
 			}
 		}
 
-		public FCgiRequest (Request req, BeginRequestRecord beginRequestRecord, Func<IDictionary<string, object>, Task> pipelineEntry, ILogger logger)
+		public FosRequest(Request req, BeginRequestRecord beginRequestRecord, Fos.Logging.IServerLogger logger)
 		{
 			if (beginRequestRecord == null)
 				throw new ArgumentNullException("beginRequestRecord");
 			else if (req == null)
 				throw new ArgumentNullException("req");
-			else if (pipelineEntry == null)
-				throw new ArgumentNullException("pipelineEntry");
 
-			this.Logger = logger;
+			Logger = logger;
 			Status = ConnectionStatus.BeginRequestReceived;
 			Request = req;
-			PipelineEntry = pipelineEntry;
 			ApplicationMustCloseConnection = beginRequestRecord.ApplicationMustCloseConnection;
 		}
 	}

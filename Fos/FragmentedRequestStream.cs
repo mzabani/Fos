@@ -55,8 +55,11 @@ namespace Fos
 					continue;
 				}
 
-				// If Read gets called more than once, we may be reading from an advanced stream, so rewind it
-				stream.Seek(0, SeekOrigin.Begin);
+				// If Read gets called more than once, we may be reading from an advanced stream, so rewind it.
+				// This is also necessary since an advanced stream may be added to this.
+				// We must, however, seek it back to its original position after reading from it
+				long streamInitialPos = stream.Position;
+				stream.Position = 0;
 
 				// If this is the first stream, skip bytes that we don't want.
 				// We must read either up to "count" bytes or the entire current stream, whichever one is smaller.
@@ -74,6 +77,7 @@ namespace Fos
 					bytesToRead = (int)stream.Length;
 
 				totalBytesRead += stream.Read(buffer, offset + totalBytesRead, bytesToRead);
+				stream.Seek(streamInitialPos, SeekOrigin.Begin);
 			}
 
 			position += totalBytesRead;
@@ -82,10 +86,14 @@ namespace Fos
 
 		public override long Seek (long offset, SeekOrigin origin)
 		{
-			throw new NotImplementedException();
-			//TODO: This is very wrong. We should seek all positions starting from the last to zero until we find the one that
-			// won't be rewinded completely, plus it disconsiders "origin"
-			lastStream.Position = offset - underlyingStreams.Take(underlyingStreams.Count - 1).Sum(s => s.Length);
+			if (origin == SeekOrigin.Begin)
+				position = offset;
+			else if (origin == SeekOrigin.Current)
+				position += offset;
+			else
+				position = Length + offset;
+
+			return position;
 		}
 		public override void SetLength (long value)
 		{
@@ -96,13 +104,15 @@ namespace Fos
 			throw new NotSupportedException();
 		}
 		public override bool CanRead {
-			get {
+			get
+			{
 				return true;
 			}
 		}
 		public override bool CanSeek {
-			get {
-				return false;
+			get
+			{
+				return true;
 			}
 		}
 		public override bool CanWrite {

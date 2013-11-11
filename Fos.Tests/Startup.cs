@@ -7,6 +7,7 @@ namespace Fos.Tests
 	[TestFixture]
 	public class Startup
 	{
+		[Test]
 		public void StartAndDispose()
 		{
 			int port = 9007; // Let's hope this is not being used..

@@ -9,10 +9,8 @@ using System.IO;
 
 namespace Fos.Tests
 {
-	// A lot to do in the browser class and in the library before we are able to write these methods
-
 	[TestFixture]
-	public class CustomPages
+	public class CustomPagesTests
 	{
 		private System.Net.IPAddress ListenOn;
 		private int ListenPort;
@@ -31,31 +29,32 @@ namespace Fos.Tests
 				return reader.ReadToEnd();
 			}
 		}
-
 		/*
 		[Test]
-		public void ErrorPage()
+		public void ErrorPageTest()
 		{
-			int port = 9007;
-
-			var config = (builder) =>
+			Action<IAppBuilder> config = (builder) =>
 			{
-				builder.Use(typeof(ThrowsExceptionApplication));
+				builder.Use(typeof(EmptyResponseApplication));
 			};
-
-			// PageNotFoundMiddleware without a next handler will throw error...
-			using (var server = new FCgiOwinSelfHost(config))
+			
+			using (var server = new FosSelfHost(config))
 			{
-				server.Bind(System.Net.IPAddress.Loopback, port);
+				server.Bind(ListenOn, ListenPort);
 				server.Start(true);
+				
+				// Make the request and expect the empty response page with 500 status code
+				var browser = new Browser(ListenOn, ListenPort);
+				var response = browser.ExecuteRequest("http://localhost/", "GET");
 
-				using (var browser = new Browser(System.Net.IPAddress.Loopback, port))
-				{
+				var errorPage = new ApplicationErrorPage(new Exception("An error occured in the application. On purpose."));
 
-				}
+				Assert.AreEqual(500, response.StatusCode);
+				Assert.AreEqual(errorPage.Contents, ReadStream(response.ResponseBody));
 			}
-		}
+		}*/
 
+		/*
 		[Test]
 		public void HelloWorldResponse()
 		{
@@ -65,13 +64,10 @@ namespace Fos.Tests
 			};
 		}*/
 
-
 		/*
 		[Test]
 		public void EmptyResponsePageTest()
 		{
-
-			Console.WriteLine("WHAAT");
 			Action<IAppBuilder> config = (builder) =>
 			{
 				builder.Use(typeof(EmptyResponseApplication));
@@ -80,21 +76,20 @@ namespace Fos.Tests
 			using (var server = new FosSelfHost(config))
 			{
 				server.Bind(ListenOn, ListenPort);
-				Console.WriteLine("After bind and before start");
 				server.Start(true);
-				Console.WriteLine("After start");
+
+				System.Threading.Thread.Sleep(100);
 
 				// Make the request and expect the empty response page with 500 status code
 				var browser = new Browser(ListenOn, ListenPort);
-				var response = browser.ExecuteRequest("http://localhost/", "GET");
+				using (var response = browser.ExecuteRequest("http://localhost/", "GET"))
+				{
+					var emptyResponsePage = new EmptyResponsePage();
 
-				var emptyResponsePage = new EmptyResponsePage();
-
-				Assert.AreEqual(500, response.StatusCode);
-				Assert.AreEqual(emptyResponsePage.Contents, ReadStream(response.ResponseBody));
+					Assert.AreEqual(500, response.StatusCode);
+					Assert.AreEqual(emptyResponsePage.Contents, ReadStream(response.ResponseBody));
+				}
 			}
-		}
-		*/
+		}*/
 	}
-
 }
