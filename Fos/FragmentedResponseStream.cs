@@ -89,9 +89,6 @@ namespace Fos
 		public override long Seek (long offset, SeekOrigin origin)
 		{
 			throw new NotSupportedException("You can't seek the response stream");
-			//TODO: This is very wrong. We should seek all positions starting from the last to zero until we find the one that
-			// won't be rewinded completely, plus it disconsiders "origin"
-			lastStream.Position = offset - underlyingStreams.Take(underlyingStreams.Count - 1).Sum(s => s.Length);
 		}
 		public override void SetLength (long value)
 		{
@@ -160,13 +157,13 @@ namespace Fos
 		/// <summary>
 		/// This event is triggered on the very first write to this Stream.
 		/// </summary>
-		public event StreamWriteEvent OnFirstWrite;
+		public event StreamWriteEvent OnFirstWrite = delegate {};
 
 		/// <summary>
 		/// Sign up to be informed when a Stream fills up all of the 65535 bytes that limit the size of a FastCgi record's contents.
 		/// The stream passed as argument is the filled stream. This event will be triggered only once per filled stream.
 		/// </summary>
-		public event StreamFilledEvent<T> OnStreamFill;
+		public event StreamFilledEvent<T> OnStreamFill = delegate {};
 
 		public FragmentedResponseStream ()
 		{
@@ -174,8 +171,6 @@ namespace Fos
 			lastStream = new T();
 			underlyingStreams.AddLast(lastStream);
 			hasBeenWrittenTo = false;
-			OnFirstWrite = delegate {};
-			OnStreamFill = delegate {};
 		}
 	}
 }

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Collections.Generic;
 
 namespace Fos.Tests
@@ -16,24 +17,15 @@ namespace Fos.Tests
 			if (response == null)
 				throw new ArgumentNullException ("response");
 
-			int b;
-			while ((b = response.ReadByte()) > 0)
-				Console.Write ((char)b);
-
-			response.Position = 0;
-
-			Console.WriteLine ("1");
 			ResponseBody = new MemoryStream();
 
 			using (var reader = new StreamReader(response, System.Text.ASCIIEncoding.ASCII))
 			{
-				Console.WriteLine ("2");
 				// First line is status code.. something quick and dirty will do
 				string line = reader.ReadLine();
 				int spaceIdx = line.IndexOf(' ');
 				StatusCode = int.Parse(line.Substring(spaceIdx + 1, 3));
 				StatusReason = line.Substring(spaceIdx + 4);
-				Console.WriteLine ("3");
 
 				// Reads the headers
 				Headers = new Dictionary<string, string>();
@@ -49,6 +41,9 @@ namespace Fos.Tests
 
 			Console.WriteLine ("4");
 
+			// TODO: Why do we need to do this? Something is very strange here!
+			response.Position = Headers.Sum (h => h.Key.Length + h.Value.Length + 4) + 2;
+			response.Seek("Status: ".Length + StatusCode.ToString().Length + (StatusReason == null ? 0 : StatusReason.Length) + 2, SeekOrigin.Current);
 			// Write the response body and rewind the stream
 			byte[] buf = new byte[4096];
 			int bytesRead;

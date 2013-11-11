@@ -36,15 +36,13 @@ namespace Fos.Listener
 		public Func<IDictionary<string, object>, Task> ApplicationPipelineEntry;
 
 		private IServerLogger Logger;
-		private FragmentedRequestStream<RecordContentsStream> RequestBodyStream;
-		private FragmentedResponseStream<RecordContentsStream> ResponseBodyStream;
 		private CancellationTokenSource CancellationSource;
 
 		/// <summary>
 		/// This method should (and is) automatically called whenever any part of the body is to be sent. It sends the response's status code
 		/// and the response headers.
 		/// </summary>
-		void SendHeaders()
+		private void SendHeaders()
 		{
 			var headers = (IDictionary<string, string[]>)owinContext["owin.ResponseHeaders"];
 			
@@ -90,11 +88,11 @@ namespace Fos.Listener
 		/// </summary>
 		private void SendUnsentBodyResponse()
 		{
-			if (ResponseBodyStream == null)
+			if (owinContext.ResponseBody.Length == 0)
 				throw new InvalidOperationException("No stdin records have been received yet, and as such the response body has not been set up.");
 
 			// Only the last unfilled stream has not been sent yet..
-			RecordContentsStream lastStream = ResponseBodyStream.LastUnfilledStream;
+			RecordContentsStream lastStream = owinContext.ResponseBody.LastUnfilledStream;
 			if (lastStream.Length == 0)
 				return;
 
@@ -131,7 +129,7 @@ namespace Fos.Listener
 			SendUnsentBodyResponse();
 		}
 
-		void SendEndRequest()
+		private void SendEndRequest()
 		{
 			// End request and connection
 			var endRequestRec = new EndRequestRecord(RequestId);
@@ -143,7 +141,7 @@ namespace Fos.Listener
 		/// after the record is sent.
 		/// </summary>
 		/// <param name="contents">A stream with the record's contents. If null, an empty record is sent.</param> 
-		void SendStdoutRecord(RecordContentsStream contents)
+		private void SendStdoutRecord(RecordContentsStream contents)
 		{
 			if (contents == null)
 			{
@@ -163,7 +161,7 @@ namespace Fos.Listener
 			}
 		}
 
-		void TestRecord(RecordBase rec)
+		private void TestRecord(RecordBase rec)
 		{
 			if (rec == null)
 				throw new ArgumentNullException("rec");
@@ -194,14 +192,8 @@ namespace Fos.Listener
 		{
 			TestRecord(rec);
 
-			// If this is the first stdin record, prepare the request body
-			if (RequestBodyStream == null)
-			{
-				RequestBodyStream = new FragmentedRequestStream<RecordContentsStream>();
-				owinContext.RequestBody = RequestBodyStream;
-			}
-
-			RequestBodyStream.AppendStream(rec.Contents);
+			// Append the request body of this record to the entire request body
+			owinContext.RequestBody.AppendStream(rec.Contents);
 
 			// Update status
 			if (rec.EmptyContentData)
@@ -212,17 +204,12 @@ namespace Fos.Listener
 				return null;
 
 			// Prepare the answer..
-			// Create a Stream in the Server project that wraps other streams with maximum size. This stream wrapper
-			// will then have a method to enumerate these streams, being one stdout record built for each.
-			//ALTHOUGH: The StreamWrapper idea is not so good if some middleware changes the underlying stream.. It is not clear 
-			// if this is valid in the specs, but it seems safe to assume it is not valid.
-			ResponseBodyStream = new FragmentedResponseStream<RecordContentsStream>();
+			var responseBodyStream = owinContext.ResponseBody;
 
 			// Sign up for the first write, because we need to send the headers when that happens, and sign up to send
 			// general data when records fill up
-			ResponseBodyStream.OnFirstWrite += SendHeaders;
-			ResponseBodyStream.OnStreamFill += SendStdoutRecord;
-			owinContext.ResponseBody = ResponseBodyStream;
+			responseBodyStream.OnFirstWrite += SendHeaders;
+			responseBodyStream.OnStreamFill += SendStdoutRecord;
 
 			// Now pass it to the Owin pipeline
 			Task applicationResponse;
@@ -266,14 +253,17 @@ namespace Fos.Listener
 				}
 
 				// Send the remaining contents if they haven't been sent (if they are not full)
-				RecordContentsStream lastStream = ResponseBodyStream.LastUnfilledStream;
+				RecordContentsStream lastStream = responseBodyStream.LastUnfilledStream;
 				if (lastStream.Length > 0)
 					SendStdoutRecord(lastStream);
+				else if (owinContext.SomeResponseExists && owinContext.ResponseBody.Length == 0)
+				{
+					// If some response exists but the body response stream has not been written to, we must send the headers
+					SendHeaders();
+				}
 				else
 				{
-					// The last unfilled stream is of size zero if and only if nothing was written to the output.
-					// This could be intended behavior from the application, unless of course the headers
-					// are not set either. If that is the case, then show an empty response error
+					// If we are here, then no response was set by the application, i.e. not a single header or response body
 					SendEmptyResponsePage();
 				}
 
@@ -290,7 +280,7 @@ namespace Fos.Listener
 		/// Use this method to send records internally, because it maintains state.
 		/// </summary>
 		/// <param name="rec">Rec.</param>
-		void SendRecord(RecordBase rec)
+		private void SendRecord(RecordBase rec)
 		{
 			if (rec.RecordType == RecordType.FCGIEndRequest)
 				Status = ConnectionStatus.EndRequestSent;

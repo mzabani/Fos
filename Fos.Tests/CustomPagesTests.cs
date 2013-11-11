@@ -29,13 +29,13 @@ namespace Fos.Tests
 				return reader.ReadToEnd();
 			}
 		}
-		/*
+
 		[Test]
 		public void ErrorPageTest()
 		{
 			Action<IAppBuilder> config = (builder) =>
 			{
-				builder.Use(typeof(EmptyResponseApplication));
+				builder.Use(typeof(ThrowsExceptionApplication));
 			};
 			
 			using (var server = new FosSelfHost(config))
@@ -47,12 +47,10 @@ namespace Fos.Tests
 				var browser = new Browser(ListenOn, ListenPort);
 				var response = browser.ExecuteRequest("http://localhost/", "GET");
 
-				var errorPage = new ApplicationErrorPage(new Exception("An error occured in the application. On purpose."));
-
 				Assert.AreEqual(500, response.StatusCode);
-				Assert.AreEqual(errorPage.Contents, ReadStream(response.ResponseBody));
+				Assert.That(ReadStream(response.ResponseBody).Contains("An error occured in the application. On purpose."));
 			}
-		}*/
+		}
 
 		/*
 		[Test]
@@ -64,7 +62,6 @@ namespace Fos.Tests
 			};
 		}*/
 
-		/*
 		[Test]
 		public void EmptyResponsePageTest()
 		{
@@ -90,6 +87,6 @@ namespace Fos.Tests
 					Assert.AreEqual(emptyResponsePage.Contents, ReadStream(response.ResponseBody));
 				}
 			}
-		}*/
+		}
 	}
 }

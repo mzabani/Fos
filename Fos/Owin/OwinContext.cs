@@ -1,6 +1,7 @@
 using System;
 using FastCgiNet;
 using System.Collections.Generic;
+using System.Linq;
 using System.IO;
 using System.Threading;
 
@@ -210,11 +211,11 @@ namespace Fos.Owin
 			}
 		}
 
-		public Stream RequestBody
+		public FragmentedRequestStream<RecordContentsStream> RequestBody
 		{
 			get
 			{
-				return (Stream)parametersDictionary["owin.RequestBody"];
+				return (FragmentedRequestStream<RecordContentsStream>)parametersDictionary["owin.RequestBody"];
 			}
 			internal set
 			{
@@ -222,11 +223,11 @@ namespace Fos.Owin
 			}
 		}
 
-		public Stream ResponseBody
+		public FragmentedResponseStream<RecordContentsStream> ResponseBody
 		{
 			get
 			{
-				return (Stream)parametersDictionary["owin.ResponseBody"];
+				return (FragmentedResponseStream<RecordContentsStream>)parametersDictionary["owin.ResponseBody"];
 			}
 			internal set
 			{
@@ -255,7 +256,9 @@ namespace Fos.Owin
 					return string.Format("{0} {1}", num, reason);
 				}
 				else
+				{
 					return num.ToString();
+				}
 			}
 			set
 			{
@@ -270,6 +273,16 @@ namespace Fos.Owin
 					Set("owin.ResponseStatusCode", num);
 					Set("owin.ResponseReasonPhrase", reason);
 				}
+			}
+		}
+
+		/// <summary>
+		/// If the application set either a response status code, a response reason phrase, some header or some response body, this is true. It is false otherwise.
+		/// </summary>
+		public bool SomeResponseExists {
+			get
+			{
+				return this.ContainsKey("owin.ResponseStatusCode") || this.ContainsKey("owin.ResponseReasonPhrase") || responseHeaders.Any() || ResponseBody.Length > 0;
 			}
 		}
 
@@ -302,8 +315,8 @@ namespace Fos.Owin
 			Set("owin.CallCancelled", token);
 
 			// Empty bodies
-			RequestBody = Stream.Null;
-			ResponseBody = Stream.Null;
+			RequestBody = new FragmentedRequestStream<RecordContentsStream>();
+			ResponseBody = new FragmentedResponseStream<RecordContentsStream>();
 
 			// It is http (not https) until proven otherwise
 			Set("owin.RequestScheme", "http");

@@ -15,7 +15,6 @@ namespace Fos
 	{
 		private LinkedList<T> underlyingStreams;
 		private long position;
-		private T lastStream;
 
 		public IEnumerable<T> UnderlyingStreams
 		{
@@ -33,7 +32,6 @@ namespace Fos
 				throw new ArgumentException("The stream has to be seekable and readable");
 
 			underlyingStreams.AddLast(s);
-			lastStream = s;
 		}
 
 		#region Implemented abstract members of Stream
