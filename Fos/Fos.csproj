@@ -53,7 +53,6 @@
     <Compile Include="CustomPages\ICustomPage.cs" />
     <Compile Include="Listener\ByteReaderAndRequest.cs" />
     <Compile Include="Listener\SocketListener.cs" />
-    <Compile Include="Listener\SocketHelper.cs" />
     <Compile Include="Listener\FosRequest.cs" />
     <Compile Include="Logging\StatsLogger.cs" />
     <Compile Include="Logging\IServerLogger.cs" />

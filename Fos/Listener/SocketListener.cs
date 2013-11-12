@@ -102,7 +102,7 @@ namespace Fos.Listener
 					{
 						// In case this sock is in the read set just because a connection has been accepted,
 						// it must be a listen socket and we should accept the new queued connections
-						if (sock.IsBound)
+						if (sock == tcpListenSocket || sock == unixListenSocket)
 						{
 							BeginAcceptNewConnections(sock);
 							continue;
