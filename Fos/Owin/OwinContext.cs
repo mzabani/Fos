@@ -145,12 +145,10 @@ namespace Fos.Owin
 
 		internal void SetOwinParametersFromFastCgiNvp(NameValuePair nameValuePair)
 		{
-			//Console.WriteLine("{0}: {1}", nameValuePair.Name, nameValuePair.Value);
-
 			if (nameValuePair.Name == "SERVER_PROTOCOL")
 				Set("owin.RequestProtocol", nameValuePair.Value);
 			else if (nameValuePair.Name == "REQUEST_METHOD")
-				Set("owin.RequestMethod", nameValuePair.Value);
+				Set("owin.RequestMethod", nameValuePair.Value.ToUpperInvariant());
 			else if (nameValuePair.Name == "QUERY_STRING")
 				Set("owin.RequestQueryString", nameValuePair.Value);
 			else if (nameValuePair.Name == "HTTPS" && nameValuePair.Value == "on")
@@ -235,19 +233,34 @@ namespace Fos.Owin
 			}
 		}
 
+        /// <summary>
+        /// The response's status code. If no response status code has been set by the application, this returns 200.
+        /// </summary>
+        public int ResponseStatusCode
+        {
+            get
+            {
+                if (this.ContainsKey("owin.ResponseStatusCode"))
+                    return Get<int>("owin.ResponseStatusCode");
+                else
+                    return 200;
+            }
+            set
+            {
+                Set("owin.ResponseStatusCode", value);
+            }
+        }
+
 		/// <summary>
-		/// The response's status code. This could be "200 OK", for example.
+		/// The response's status code and reason. This could be "200 OK", for example. It could also be just the status code, in case
+        /// the application didn't set a reason.
 		/// </summary>
-		/// <value>The response's status code.</value>
-		public string ResponseStatusCode
+		/// <value>The response's status code and reason.</value>
+		public string ResponseStatusCodeAndReason
 		{
 			get
 			{
-				int num;
-				if (this.ContainsKey("owin.ResponseStatusCode"))
-					num = Get<int>("owin.ResponseStatusCode");
-				else
-					num = 200;
+                int num = ResponseStatusCode;
 
 				string reason;
 				if (this.ContainsKey("owin.ResponseReasonPhrase"))
@@ -264,13 +277,13 @@ namespace Fos.Owin
 			{
 				int firstSpaceIdx = value.IndexOf(" ");
 				if (firstSpaceIdx == -1)
-					Set("owin.ResponseStatusCode", int.Parse(value));
+                    this.ResponseStatusCode = int.Parse(value);
 				else
 				{
 					int num = int.Parse(value.Substring(0, firstSpaceIdx + 1));
 					string reason = value.Substring(firstSpaceIdx + 1);
 
-					Set("owin.ResponseStatusCode", num);
+					this.ResponseStatusCode = num;
 					Set("owin.ResponseReasonPhrase", reason);
 				}
 			}
@@ -290,12 +303,73 @@ namespace Fos.Owin
 		{
 			get
 			{
-				//TODO: Although the standard does not mention this, we should percent-decode this uri's components
-				return (string)parametersDictionary["owin.RequestScheme"] + "://" + (string)requestHeaders["Host"][0]
-				+ (string)parametersDictionary["owin.RequestPathBase"] + (string)parametersDictionary["owin.RequestPath"]
-				+ ((parametersDictionary.ContainsKey("owin.RequestQueryString") && !string.IsNullOrEmpty((string)parametersDictionary["owin.RequestQueryString"])) ? "?" + (string)parametersDictionary["owin.RequestQueryString"] : null);
+                string queryString = this.QueryString;
+				return Get<string>("owin.RequestScheme") + "://" + (string)requestHeaders["Host"][0]
+				+ this.RelativePath
+				+ (!string.IsNullOrEmpty(queryString) ? "?" + queryString : null);
 			}
 		}
+
+        /// <summary>
+        /// Before reading the <see cref="RelativePath"/> property, make sure this is true, otherwise there is not enough
+        /// information to find the relative path and an exception could be thrown.
+        /// </summary>
+        /// <remarks>One only needs to check for this before all ParamsRecords are received and added to this context.</remarks>
+        public bool RelativePathDefined
+        {
+            get
+            {
+                return this.ContainsKey("owin.RequestPathBase") && this.ContainsKey("owin.RequestPath");
+            }
+        }
+        public string RelativePath
+        {
+            get
+            {
+                return Get<string>("owin.RequestPathBase") + Get<string>("owin.RequestPath");
+            }
+        }
+
+        /// <summary>
+        /// Before reading the <see cref="HttpMethod"/> property, make sure this is true, otherwise there is not enough
+        /// information to find the http method and an exception could be thrown.
+        /// </summary>
+        /// <remarks>One only needs to check for this before all ParamsRecords are received and added to this context.</remarks>
+        public bool HttpMethodDefined
+        {
+            get
+            {
+                return this.ContainsKey("owin.RequestMethod");
+            }
+        }
+
+        /// <summary>
+        /// The Http Method. If not set manually, this will always be all in upper case letters.
+        /// </summary>
+        public string HttpMethod
+        {
+            get
+            {
+                return Get<string>("owin.RequestMethod");
+            }
+        }
+
+        /// <summary>
+        /// The query string. This can be null if no query string parameter has been defined.
+        /// </summary>
+        /// <remarks>This property is safe even in incomplete contexts.</remarks>
+        public string QueryString
+        {
+            get
+            {
+                //TODO: We should percent-decode this uri's components
+
+                if (this.ContainsKey("owin.RequestQueryString"))
+                    return Get<string>("owin.RequestQueryString");
+                else
+                    return null;
+            }
+        }
 
 		public OwinContext(string owinVersion, CancellationToken token)
 		{

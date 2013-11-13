@@ -56,6 +56,7 @@
     <Compile Include="Listener\FosRequest.cs" />
     <Compile Include="Logging\StatsLogger.cs" />
     <Compile Include="Logging\IServerLogger.cs" />
+    <Compile Include="Logging\RequestInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

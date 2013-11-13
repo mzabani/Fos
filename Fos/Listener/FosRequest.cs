@@ -28,7 +28,11 @@ namespace Fos.Listener
 		}
 		public bool ApplicationMustCloseConnection { get; private set; }
 		public ConnectionStatus Status { get; private set; }
-		public OwinContext owinContext { get; private set; }
+		
+        /// <summary>
+        /// The Owin Dictionary. This is null until a ParamsRecord is received.
+        /// </summary>
+        public OwinContext OwinContext { get; private set; }
 
 		/// <summary>
 		/// Sets the application's entry point. This must be set before receiving Stdin records.
@@ -44,7 +48,7 @@ namespace Fos.Listener
 		/// </summary>
 		private void SendHeaders()
 		{
-			var headers = (IDictionary<string, string[]>)owinContext["owin.ResponseHeaders"];
+			var headers = (IDictionary<string, string[]>)OwinContext["owin.ResponseHeaders"];
 			
 			//TODO: Can headers length exceed the 65535 content limit of a fastcgi record?
 			//WARNING: We may at this point have all the response written.. it would be nice to
@@ -54,7 +58,7 @@ namespace Fos.Listener
 			using (var writer = new StreamWriter(headersRecord.Contents, System.Text.Encoding.ASCII))
 			{
 				// Response status code with special CGI header "Status"
-				writer.Write("Status: {0}\r\n", owinContext.ResponseStatusCode);
+				writer.Write("Status: {0}\r\n", OwinContext.ResponseStatusCodeAndReason);
 
 				foreach (var header in headers)
 				{
@@ -88,11 +92,11 @@ namespace Fos.Listener
 		/// </summary>
 		private void SendUnsentBodyResponse()
 		{
-			if (owinContext.ResponseBody.Length == 0)
+			if (OwinContext.ResponseBody.Length == 0)
 				throw new InvalidOperationException("No stdin records have been received yet, and as such the response body has not been set up.");
 
 			// Only the last unfilled stream has not been sent yet..
-			RecordContentsStream lastStream = owinContext.ResponseBody.LastUnfilledStream;
+			RecordContentsStream lastStream = OwinContext.ResponseBody.LastUnfilledStream;
 			if (lastStream.Length == 0)
 				return;
 
@@ -103,10 +107,10 @@ namespace Fos.Listener
 		{
 			var errorPage = new Fos.CustomPages.ApplicationErrorPage(applicationEx);
 
-			owinContext.SetResponseHeader("Content-Type", "text/html");
-			owinContext.ResponseStatusCode = "500 Internal Server Error";
+			OwinContext.SetResponseHeader("Content-Type", "text/html");
+			OwinContext.ResponseStatusCodeAndReason = "500 Internal Server Error";
 
-			using (var sw = new StreamWriter(owinContext.ResponseBody))
+			using (var sw = new StreamWriter(OwinContext.ResponseBody))
 			{
 				sw.Write(errorPage.Contents);
 			}
@@ -118,10 +122,10 @@ namespace Fos.Listener
 		{
 			var emptyResponsePage = new Fos.CustomPages.EmptyResponsePage();
 			
-			owinContext.SetResponseHeader("Content-Type", "text/html");
-			owinContext.ResponseStatusCode = "500 Internal Server Error";
+			OwinContext.SetResponseHeader("Content-Type", "text/html");
+			OwinContext.ResponseStatusCodeAndReason = "500 Internal Server Error";
 			
-			using (var sw = new StreamWriter(owinContext.ResponseBody))
+			using (var sw = new StreamWriter(OwinContext.ResponseBody))
 			{
 				sw.Write(emptyResponsePage.Contents);
 			}
@@ -174,13 +178,13 @@ namespace Fos.Listener
 			TestRecord(rec);
 
 			Status = ConnectionStatus.ParamsReceived;
-			if (owinContext == null)
+			if (OwinContext == null)
 			{
 				CancellationSource = new CancellationTokenSource();
-				owinContext = new OwinContext("1.0", CancellationSource.Token);
+				OwinContext = new OwinContext("1.0", CancellationSource.Token);
 			}
 
-			owinContext.AddParamsRecord(rec);
+			OwinContext.AddParamsRecord(rec);
 		}
 
 		/// <summary>
@@ -193,7 +197,7 @@ namespace Fos.Listener
 			TestRecord(rec);
 
 			// Append the request body of this record to the entire request body
-			owinContext.RequestBody.AppendStream(rec.Contents);
+			OwinContext.RequestBody.AppendStream(rec.Contents);
 
 			// Update status
 			if (rec.EmptyContentData)
@@ -204,7 +208,7 @@ namespace Fos.Listener
 				return null;
 
 			// Prepare the answer..
-			var responseBodyStream = owinContext.ResponseBody;
+			var responseBodyStream = OwinContext.ResponseBody;
 
 			// Sign up for the first write, because we need to send the headers when that happens, and sign up to send
 			// general data when records fill up
@@ -215,7 +219,7 @@ namespace Fos.Listener
 			Task applicationResponse;
 			try
 			{
-				applicationResponse = ApplicationPipelineEntry(owinContext);
+				applicationResponse = ApplicationPipelineEntry(OwinContext);
 			}
 			catch (Exception e)
 			{
@@ -256,7 +260,7 @@ namespace Fos.Listener
 				RecordContentsStream lastStream = responseBodyStream.LastUnfilledStream;
 				if (lastStream.Length > 0)
 					SendStdoutRecord(lastStream);
-				else if (owinContext.SomeResponseExists && owinContext.ResponseBody.Length == 0)
+				else if (OwinContext.SomeResponseExists && OwinContext.ResponseBody.Length == 0)
 				{
 					// If some response exists but the body response stream has not been written to, we must send the headers
 					SendHeaders();

@@ -49,6 +49,7 @@
     <Compile Include="FragmentedRequestStreamTests.cs" />
     <Compile Include="Browser\BrowserResponse.cs" />
     <Compile Include="CustomPagesTests.cs" />
+    <Compile Include="AbruptConnectionClosing.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

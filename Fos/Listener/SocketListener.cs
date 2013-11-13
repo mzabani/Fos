@@ -67,17 +67,34 @@ namespace Fos.Listener
 		/// <summary>
 		/// Closes and disposes of a Request and its Socket while also removing it from the internal collection of open sockets.
 		/// </summary>
-		private void OnSocketClose(Request req, bool abrupt)
+		private void OnAbruptSocketClose(Request req, FosRequest fosRequest)
 		{
 			ByteReaderAndRequest trash;
 			OpenSockets.TryRemove(req.Socket, out trash);
 
 			if (Logger != null)
 			{
-				if (abrupt)
-					Logger.LogConnectionClosedAbruptly(req.Socket);
+				if (fosRequest == null)
+					Logger.LogConnectionClosedAbruptly(req.Socket, null);
 				else
-					Logger.LogConnectionEndedNormally(req.Socket);
+					Logger.LogConnectionClosedAbruptly(req.Socket, new RequestInfo(fosRequest));
+			}
+		}
+		
+		/// <summary>
+		/// Closes and disposes of a Request and its Socket while also removing it from the internal collection of open sockets.
+		/// </summary>
+		private void OnNormalSocketClose(Request req, FosRequest fosRequest)
+		{
+			if (fosRequest == null)
+				throw new ArgumentNullException("fosRequest");
+		
+			ByteReaderAndRequest trash;
+			OpenSockets.TryRemove(req.Socket, out trash);
+			
+			if (Logger != null)
+			{
+				Logger.LogConnectionEndedNormally(req.Socket, new RequestInfo(fosRequest));
 			}
 		}
 
@@ -137,7 +154,14 @@ namespace Fos.Listener
 										fosRequest = new FosRequest(fcgiRequest, beginRec, Logger);
 										brr.FosRequest = fosRequest;
 										fcgiRequest.SetBeginRequest(beginRec);
+										
+										// Also, this means termination now has request data
+										fcgiRequest.OnAbruptSocketClose = () => OnAbruptSocketClose(fcgiRequest, fosRequest);
+										fcgiRequest.OnSocketClose += () => OnNormalSocketClose(fcgiRequest, fosRequest);
+										
+										// Calls whoever is interested in knowing of this record!
 										OnReceiveBeginRequestRecord(brr.FosRequest, beginRec);
+										
 										break;
 									
 									case RecordType.FCGIParams:
@@ -207,7 +231,10 @@ namespace Fos.Listener
 
 				newConnection = listenSocket.Accept();
 				var request = new Request(newConnection);
-				request.OnSocketClose += OnSocketClose;
+				
+				// Until we are able to build a FosRequest, this will be abrupt termination without request data
+				request.OnAbruptSocketClose += () => OnAbruptSocketClose(request, null);
+				
 				OpenSockets[newConnection] = new ByteReaderAndRequest(new ByteReader(RecFactory), request);
 				if (Logger != null)
 					Logger.LogConnectionReceived(newConnection);
