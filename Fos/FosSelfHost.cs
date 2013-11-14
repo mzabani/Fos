@@ -22,6 +22,14 @@ namespace Fos
 		private IServerLogger Logger;
 		private CancellationTokenSource OnAppDisposal;
 
+        public bool IsRunning
+        {
+            get
+            {
+                return FastCgiListener.IsRunning;
+            }
+        }
+
 		/// <summary>
 		/// Starts this FastCgi server! This method only returns when the server is ready to accept connections.
 		/// </summary>
@@ -41,10 +49,7 @@ namespace Fos
 			if (Logger != null)
 				FastCgiListener.SetLogger(Logger);
 
-			if (!background)
-				FastCgiListener.Start();
-			else
-				FastCgiListener.StartInBackground();
+            FastCgiListener.Start(background);
 		}
 
 		/// <summary>
@@ -62,6 +67,9 @@ namespace Fos
 
 		public void SetLogger(IServerLogger logger)
 		{
+            if (logger == null)
+                throw new ArgumentNullException("logger");
+
 			this.Logger = logger;
 		}
 
@@ -81,6 +89,8 @@ namespace Fos
 			onCloseConnection.ContinueWith(t =>
 			{
 				//TODO: The task may have failed or something else happened, verify
+                // Remember that connections closed by the other side abruptly have already
+                // been closed by the listener loop, so we shouldn't call Request.CloseSocket() here again
 				if (t.Result)
 					req.Request.CloseSocket();
 			});

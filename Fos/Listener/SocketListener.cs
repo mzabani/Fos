@@ -71,6 +71,7 @@ namespace Fos.Listener
 		{
 			ByteReaderAndRequest trash;
 			OpenSockets.TryRemove(req.Socket, out trash);
+            req.Socket.Dispose();
 
 			if (Logger != null)
 			{
@@ -88,7 +89,7 @@ namespace Fos.Listener
 		{
 			if (fosRequest == null)
 				throw new ArgumentNullException("fosRequest");
-		
+		    
 			ByteReaderAndRequest trash;
 			OpenSockets.TryRemove(req.Socket, out trash);
 			
@@ -106,7 +107,7 @@ namespace Fos.Listener
 			{
 				try
 				{
-					// We want Select to return when either a new connection has arrived or when there is incoming socket data
+					// ReadSet: We want Select to return when either a new connection has arrived or when there is incoming socket data
 					List<Socket> socketsReadSet = OpenSockets.Keys.ToList();
 					if (tcpListenSocket != null && tcpListenSocket.IsBound)
 						socketsReadSet.Add(tcpListenSocket);
@@ -114,7 +115,7 @@ namespace Fos.Listener
 						socketsReadSet.Add(unixListenSocket);
 
 					Socket.Select(socketsReadSet, null, null, selectMaximumTime);
-					
+
 					foreach (Socket sock in socketsReadSet)
 					{
 						// In case this sock is in the read set just because a connection has been accepted,
@@ -125,13 +126,45 @@ namespace Fos.Listener
 							continue;
 						}
 
-						// Read from the socket
-						var brr = OpenSockets[sock];
+						// Get some data on the socket
+                        ByteReaderAndRequest brr;
+                        if (!OpenSockets.TryGetValue(sock, out brr))
+                        {
+                            // On socket shutdown we may find a socket returned by Select that has already been removed
+                            // from OpenSockets from a normal connection closing
+                            continue;
+                        }
 						var fcgiRequest = brr.FCgiRequest;
 						var fosRequest = brr.FosRequest;
 						var byteReader = brr.ByteReader;
 
-						int bytesRead = sock.Receive(buffer, SocketFlags.None);
+                        // Read data. The socket could have been disposed here.
+                        // We need to remove it from our internal bookkeeping if that's the case.
+                        int bytesRead;
+                        try
+                        {
+                            bytesRead = sock.Receive(buffer, SocketFlags.None);
+                        }
+                        catch (ObjectDisposedException)
+                        {
+                            OnAbruptSocketClose(fcgiRequest, fosRequest);
+                            continue;
+                        }
+                        catch (SocketException e)
+                        {
+                            if (e.SocketErrorCode == SocketError.Shutdown)
+                            {
+                                OnAbruptSocketClose(fcgiRequest, fosRequest);
+                                continue;
+                            }
+                            else
+                                throw;
+                        }
+                        if (bytesRead == 0)
+                        {
+                            OnAbruptSocketClose(fcgiRequest, fosRequest);
+                            continue;
+                        }
 
 						// Feed the byte reader and signal our events
 						// Catch application errors to avoid service disruption
@@ -156,7 +189,6 @@ namespace Fos.Listener
 										fcgiRequest.SetBeginRequest(beginRec);
 										
 										// Also, this means termination now has request data
-										fcgiRequest.OnAbruptSocketClose = () => OnAbruptSocketClose(fcgiRequest, fosRequest);
 										fcgiRequest.OnSocketClose += () => OnNormalSocketClose(fcgiRequest, fosRequest);
 										
 										// Calls whoever is interested in knowing of this record!
@@ -232,9 +264,6 @@ namespace Fos.Listener
 				newConnection = listenSocket.Accept();
 				var request = new Request(newConnection);
 				
-				// Until we are able to build a FosRequest, this will be abrupt termination without request data
-				request.OnAbruptSocketClose += () => OnAbruptSocketClose(request, null);
-				
 				OpenSockets[newConnection] = new ByteReaderAndRequest(new ByteReader(RecFactory), request);
 				if (Logger != null)
 					Logger.LogConnectionReceived(newConnection);
@@ -276,9 +305,9 @@ namespace Fos.Listener
 #endif
 
 		/// <summary>
-		/// Start this FastCgi application. This method blocks while the program runs.
+		/// Start this FastCgi application. Set <paramref name="background"/> to true to start this without blocking.
 		/// </summary>
-		public void Start() {
+		public void Start(bool background) {
 			if (!SomeListenSocketHasBeenBound)
 				throw new InvalidOperationException("You have to bind to some address or unix socket file first");
 
@@ -290,32 +319,19 @@ namespace Fos.Listener
 			// Wait for connections without blocking
 			IsRunning = true;
 
-			// Block here
-			Work();
-		}
+            if (Logger != null)
+                Logger.ServerStart();
+
+			if (background)
+                //TODO: If one of the tasks below is delayed (why in the world would that happen, idk) then this
+                // method returns without being ready to accept connections..
+                Task.Factory.StartNew(Work);
+            else
+			    Work();
+     		}
 
 		/// <summary>
-		/// Start this FastCgi application. This method does not block and only returns when the server is ready to accept connections.
-		/// </summary>
-		public void StartInBackground() {
-			if (!SomeListenSocketHasBeenBound)
-				throw new InvalidOperationException("You have to bind to some address or unix socket file first");
-
-			if (tcpListenSocket != null && tcpListenSocket.IsBound)
-				tcpListenSocket.Listen(listenBacklog);
-			if (unixListenSocket != null && unixListenSocket.IsBound)
-				unixListenSocket.Listen(listenBacklog);
-
-			// Set this before waiting for connections
-			IsRunning = true;
-
-			//TODO: If one of the tasks below is delayed (why in the world would that happen, idk) then this
-			// method returns without being ready to accept connections..
-			Task.Factory.StartNew(Work);
-		}
-
-		/// <summary>
-		/// Closes the listen socket and all active connections abruptly.
+		/// Closes the listen socket and all active connections without a proper goodbye.
 		/// </summary>
 		public void Stop()
 		{
@@ -327,6 +343,8 @@ namespace Fos.Listener
 				unixListenSocket.Close();
 
 			//TODO: Stop task that waits for connection data..
+            if (Logger != null)
+                Logger.ServerStop();
 
 			foreach (var socketAndRequest in OpenSockets)
 			{

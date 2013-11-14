@@ -33,7 +33,7 @@ namespace Fos.Logging
 		void LogConnectionClosedAbruptly(Socket s, RequestInfo req);
 		
 		void LogConnectionEndedNormally(Socket s, RequestInfo req);
-		void LogApplicationError(Exception e);
+		void LogApplicationError(Exception e, RequestInfo req);
 		void LogServerError(Exception e, string format, params object[] prms);
 		void LogSocketError(Socket s, Exception e, string format, params object[] prms);
 		void LogInvalidRecordReceived(RecordBase invalidRecord);

@@ -49,7 +49,10 @@
     <Compile Include="FragmentedRequestStreamTests.cs" />
     <Compile Include="Browser\BrowserResponse.cs" />
     <Compile Include="CustomPagesTests.cs" />
-    <Compile Include="AbruptConnectionClosing.cs" />
+    <Compile Include="Logger\AbruptConnectionClosing.cs" />
+    <Compile Include="Logger\NormalConnectionClosing.cs" />
+    <Compile Include="SocketTests.cs" />
+    <Compile Include="Logger\OneRequestTestLogger.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
@@ -68,5 +71,6 @@
   <ItemGroup>
     <Folder Include="Middleware\" />
     <Folder Include="Browser\" />
+    <Folder Include="Logger\" />
   </ItemGroup>
 </Project>

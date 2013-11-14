@@ -150,13 +150,6 @@ namespace Fos.Logging
 			// Add it to the aggregated connections
 			ConnectionsReceivedAggregated[lastAggrPeriod] = ConnectionsReceivedAggregated[lastAggrPeriod] + 1;
 		}
-
-		public void LogConnectionClosedAbruptly(Socket s)
-		{
-			//TODO: Lock
-			StopConnectionTimer(s);
-			AbruptConnectionCloses++;
-		}
 		
 		public void LogConnectionClosedAbruptly(Socket s, RequestInfo req)
 		{
@@ -210,7 +203,7 @@ namespace Fos.Logging
 			}
 		}
 
-		public void LogApplicationError(Exception e)
+		public void LogApplicationError(Exception e, RequestInfo req)
 		{
 			throw new NotImplementedException ();
 		}

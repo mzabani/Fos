@@ -32,5 +32,29 @@ namespace Fos.Tests
 			Assert.AreEqual(string.Empty, (string)ctx["owin.RequestPathBase"]);
 			Assert.AreEqual("/about/terms", (string)ctx["owin.RequestPath"]);
 		}
+
+        [Test]
+        public void PartialContextNoMethod()
+        {
+            var ctx = new OwinContext("1.0", TokenSource.Token);
+
+            Assert.AreEqual(false, ctx.HttpMethodDefined);
+        }
+
+        [Test]
+        public void PartialContextNoUri()
+        {
+            var ctx = new OwinContext("1.0", TokenSource.Token);
+            
+            Assert.AreEqual(false, ctx.RelativePathDefined);
+        }
+
+        [Test]
+        public void PartialContextNoResponse()
+        {
+            var ctx = new OwinContext("1.0", TokenSource.Token);
+            
+            Assert.AreEqual(false, ctx.SomeResponseExists);
+        }
 	}
 }

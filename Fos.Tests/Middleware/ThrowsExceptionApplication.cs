@@ -14,6 +14,7 @@ namespace Fos.Tests.Middleware
 		{
 			return Task.Factory.StartNew(() =>
             {
+                // IF YOU WANT TO CHANGE THIS, WATCH OUT. A LOT OF CODE DEPENDS ON THIS
 				throw new Exception("An error occured in the application. On purpose.");
 			});
 		}

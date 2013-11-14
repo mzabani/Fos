@@ -12,12 +12,16 @@ namespace Fos.Tests
 		{
 			int port = 9007; // Let's hope this is not being used..
 
-			using (var server = new FosSelfHost(app => {}))
+            FosSelfHost server;
+			using (server = new FosSelfHost(app => {}))
 			{
 				server.Bind(System.Net.IPAddress.Loopback, port);
 
 				server.Start(true);
+                Assert.AreEqual(true, server.IsRunning);
 			}
+
+            Assert.AreEqual(false, server.IsRunning);
 		}
 	}
 }

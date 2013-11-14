@@ -17,9 +17,40 @@ namespace Fos.Tests
 		private int FastCgiServerPort;
 		private Socket SocketToUse;
 
-		private FragmentedRequestStream<RecordContentsStream> ResponseStream = new FragmentedRequestStream<RecordContentsStream>();
+		protected FragmentedRequestStream<RecordContentsStream> ResponseStream = new FragmentedRequestStream<RecordContentsStream>();
+        protected Request Request;
+        protected ushort RequestId
+        {
+            get
+            {
+                return Request.RequestId;
+            }
+        }
 
-		public BrowserResponse ExecuteRequest(string url, string method)
+        protected void SendBeginRequest(Socket sock)
+        {
+            ushort requestId = 1;
+            var beginRequestRecord = new BeginRequestRecord(requestId);
+            beginRequestRecord.ApplicationMustCloseConnection = true;
+            beginRequestRecord.Role = Role.Responder;
+            Request = new Request(sock, beginRequestRecord);
+            Request.Send(beginRequestRecord);
+        }
+
+        protected void SendParams(Uri uri, string method)
+        {
+            using (var firstParams = new ParamsRecord(RequestId))
+            {
+                firstParams.SetParamsFromUri(uri, method);
+                Request.Send(firstParams);
+            }
+            using (var emptyParams = new ParamsRecord(RequestId))
+            {
+                Request.Send(emptyParams);
+            }
+        }
+
+		public virtual BrowserResponse ExecuteRequest(string url, string method)
 		{
 			var uri = new Uri(url);
 			Socket sock = SocketToUse ?? new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
@@ -28,33 +59,16 @@ namespace Fos.Tests
 
 			var reader = new ByteReader(new RecordFactory());
 
-			Request req;
-
-			// Begin request
-			ushort requestId = 1;
-			var beginRequestRecord = new BeginRequestRecord(requestId);
-			{
-				beginRequestRecord.ApplicationMustCloseConnection = true;
-				beginRequestRecord.Role = Role.Responder;
-				req = new Request(sock, beginRequestRecord);
-				req.Send(beginRequestRecord);
-			}
+            // Begin request
+            SendBeginRequest(sock);
 
 			// Params and empty params
-			using (var firstParams = new ParamsRecord(requestId))
-			{
-				firstParams.SetParamsFromUri(uri, method);
-				req.Send(firstParams);
-			}
-			using (var emptyParams = new ParamsRecord(requestId))
-			{
-				req.Send(emptyParams);
-			}
+            SendParams(uri, method);
 
 			// Empty Stdin for now.
-			using (var rec = new StdinRecord(requestId))
+			using (var rec = new StdinRecord(RequestId))
 			{
-				req.Send(rec);
+				Request.Send(rec);
 			}
 
 			// Build our records!
@@ -75,7 +89,6 @@ namespace Fos.Tests
 
 			sock.Close();
 
-			Console.WriteLine ("Response stream has {0} underlying streams, of summed length {1}", ResponseStream.UnderlyingStreams.Count(), ResponseStream.UnderlyingStreams.Sum(x => x.Length));
 			return new BrowserResponse(ResponseStream);
 		}
 

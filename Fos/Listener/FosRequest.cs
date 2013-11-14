@@ -224,7 +224,7 @@ namespace Fos.Listener
 			catch (Exception e)
 			{
 				if (Logger != null)
-					Logger.LogApplicationError(e);
+					Logger.LogApplicationError(e, new RequestInfo(this));
 
 				// Show the exception to the visitor
 				SendErrorPage(e);
@@ -244,7 +244,7 @@ namespace Fos.Listener
 					Exception e = applicationTask.Exception;
 
 					if (Logger != null)
-						Logger.LogApplicationError(e);
+						Logger.LogApplicationError(e, new RequestInfo(this));
 
 					// Show the exception to the visitor
 					SendErrorPage(e);
