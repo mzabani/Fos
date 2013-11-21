@@ -7,7 +7,7 @@ namespace Fos.Logging
 {
     using OwinHandler = Func<IDictionary<string, object>, Task>;
 
-    public class StatsPageMiddleware
+    internal class StatsPageMiddleware
     {
         private StatsLogger Logger;
 
@@ -34,9 +34,9 @@ namespace Fos.Logging
                         if (el.nodeName == 'TD' && el.getAttribute('class') == 'see_details') {
                             var nextRow = el.parentElement.nextElementSibling;
                             if (!nextRow.style.display || nextRow.style.display == 'none')
-                                nextRow.style = 'display: table-row';
+                                nextRow.style.display = 'table-row';
                             else
-                                nextRow.style = 'display: none';
+                                nextRow.style.display = 'none';
                         }
                     };</script>";
         }

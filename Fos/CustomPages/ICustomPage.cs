@@ -2,7 +2,7 @@ using System;
 
 namespace Fos.CustomPages
 {
-	public interface ICustomPage
+	internal interface ICustomPage
 	{
 		/// <summary>
 		/// The entire HTML contents of the page.

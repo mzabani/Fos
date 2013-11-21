@@ -9,6 +9,8 @@ using Owin;
 
 namespace Fos
 {
+    using OwinHandler = Func<IDictionary<string, object>, System.Threading.Tasks.Task>;
+
 	/// <summary>
 	/// This is the class you need to use to host your web application. It will create a TCP Socket that receives FastCgi
 	/// connections from your web server, passing them to the Owin pipeline.
@@ -16,11 +18,16 @@ namespace Fos
 	public class FosSelfHost : IDisposable
 	{
 		private SocketListener FastCgiListener;
-		private FCgiAppBuilder AppBuilder;
+		private FosAppBuilder AppBuilder;
 		private Func<IDictionary<string, object>, System.Threading.Tasks.Task> OwinPipelineEntry;
 		private Action<IAppBuilder> ApplicationConfigure;
 		private IServerLogger Logger;
 		private CancellationTokenSource OnAppDisposal;
+
+        /// <summary>
+        /// Set this to enable a statistics logger alongside any logger the user sets.
+        /// </summary>
+        internal StatsLogger StatisticsLogger;
 
         public bool IsRunning
         {
@@ -29,6 +36,20 @@ namespace Fos
                 return FastCgiListener.IsRunning;
             }
         }
+        
+        private IServerLogger BuildLogger()
+        {
+            if (Logger == null && StatisticsLogger == null)
+                return null;
+
+            var logger = new CompositeServerLogger();
+            if (Logger != null)
+                logger.AddLogger(Logger);
+            if (StatisticsLogger != null)
+                logger.AddLogger(StatisticsLogger);
+
+            return logger;
+        }
 
 		/// <summary>
 		/// Starts this FastCgi server! This method only returns when the server is ready to accept connections.
@@ -36,18 +57,21 @@ namespace Fos
 		/// <param name="background">True to start the server without blocking, false to block.</param>
 		public void Start(bool background)
 		{
-			AppBuilder = new FCgiAppBuilder(OnAppDisposal.Token);
+			AppBuilder = new FosAppBuilder(OnAppDisposal.Token);
 
-			// Configure the application and build our pipeline entry
-			ApplicationConfigure(AppBuilder);
-			OwinPipelineEntry = (Func<IDictionary<string, object>, System.Threading.Tasks.Task>) AppBuilder.Build(typeof(Func<IDictionary<string, object>, System.Threading.Tasks.Task>));
+            // Configure the application and build our pipeline entry. This must happen BEFORE BUILDING THE LOGGER
+            ApplicationConfigure(AppBuilder);
+            OwinPipelineEntry = (OwinHandler) AppBuilder.Build(typeof(OwinHandler));
 
+            // Sets the logger
+            var logger = BuildLogger();
+            if (logger != null)
+                FastCgiListener.SetLogger(logger);
+
+            // Signs up for important events, then starts the listener
 			FastCgiListener.OnReceiveBeginRequestRecord += OnReceiveBeginRequest;
 			FastCgiListener.OnReceiveParamsRecord += OnReceiveParams;
 			FastCgiListener.OnReceiveStdinRecord += OnReceiveStdin;
-
-			if (Logger != null)
-				FastCgiListener.SetLogger(Logger);
 
             FastCgiListener.Start(background);
 		}

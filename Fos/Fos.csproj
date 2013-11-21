@@ -40,12 +40,9 @@
     <Compile Include="AssemblyInfo.cs" />
     <Compile Include="Middleware\OwinMiddleware.cs" />
     <Compile Include="Middleware\PageNotFoundMiddleware.cs" />
-    <Compile Include="Middleware\FCgiOwinRoot.cs" />
     <Compile Include="Owin\ExtensionMethods.cs" />
-    <Compile Include="Owin\FCgiAppBuilder.cs" />
     <Compile Include="Owin\OwinContext.cs" />
     <Compile Include="FragmentedResponseStream.cs" />
-    <Compile Include="Logging\StderrLogger.cs" />
     <Compile Include="FosSelfHost.cs" />
     <Compile Include="FragmentedRequestStream.cs" />
     <Compile Include="CustomPages\EmptyResponsePage.cs" />
@@ -54,13 +51,16 @@
     <Compile Include="Listener\ByteReaderAndRequest.cs" />
     <Compile Include="Listener\SocketListener.cs" />
     <Compile Include="Listener\FosRequest.cs" />
-    <Compile Include="Logging\StatsLogger.cs" />
     <Compile Include="Logging\IServerLogger.cs" />
     <Compile Include="Logging\RequestInfo.cs" />
-    <Compile Include="Logging\StatsPageMiddleware.cs" />
-    <Compile Include="Logging\ApplicationError.cs" />
     <Compile Include="Middleware\ShuntMiddleware.cs" />
     <Compile Include="Owin\HeaderDictionary.cs" />
+    <Compile Include="Logging\CompositeServerLogger.cs" />
+    <Compile Include="Logging\StatsLogging\ApplicationError.cs" />
+    <Compile Include="Logging\StatsLogging\StatsLogger.cs" />
+    <Compile Include="Logging\StatsLogging\StatsPageMiddleware.cs" />
+    <Compile Include="Owin\FosAppBuilder.cs" />
+    <Compile Include="Middleware\FosOwinRoot.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
@@ -68,6 +68,7 @@
     <Folder Include="Owin\" />
     <Folder Include="Logging\" />
     <Folder Include="CustomPages\" />
+    <Folder Include="Logging\StatsLogging\" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

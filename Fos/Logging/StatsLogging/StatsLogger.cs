@@ -11,7 +11,7 @@ namespace Fos.Logging
 	/// <summary>
 	/// Class that holds minimum, maximum and average times of a request to a specific endpoint, for a specific Http method.
 	/// </summary>
-	public class RequestTimes
+	internal class RequestTimes
 	{
 		public string HttpMethod { get; private set; }
 		public string RelativePath { get; private set; }
@@ -33,10 +33,9 @@ namespace Fos.Logging
 	}
 
 	/// <summary>
-	/// This class helps collect connection statistics. It could be entirely implemented outside Fos, but remains here
-	/// for its usefulness. All DateTimes are record in UTC time.
+	/// This class helps collect connection statistics. All DateTimes are record in UTC time.
 	/// </summary>
-	public class StatsLogger : IServerLogger
+	internal class StatsLogger : IServerLogger
 	{
 		//TODO: Case sensitive or insensitive path comparison (and super option to supply IComparer<string>)
 		//TODO: Light weight locks?

@@ -7,7 +7,7 @@ using System.Linq.Expressions;
 
 namespace Fos.Owin
 {
-	class OwinMiddleware
+	internal class OwinMiddleware
 	{
 		/// <summary>
 		/// The type of this middleware. An instance of this type will be created and Invoke() will be called on it if this middleware

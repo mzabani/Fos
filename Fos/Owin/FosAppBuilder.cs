@@ -6,23 +6,23 @@ using Owin;
 
 namespace Fos.Owin
 {
-	public class FCgiAppBuilder : IAppBuilder
+	internal class FosAppBuilder : IAppBuilder
 	{
 		private Dictionary<string, object> properties;
 
 		public CancellationToken OnAppDisposing { get; private set; }
 
-		private FCgiOwinRoot RootMiddleware;
+		private FosOwinRoot RootMiddleware;
 
 		/// <summary>
 		/// This is the last middleware added through <see cref="Use"/>, or the <see cref="RootMiddleWare"/> in case <see cref="Use"/> has not been called yet.
 		/// </summary>
 		private OwinMiddleware LastMiddleware;
 
-		public FCgiAppBuilder(CancellationToken cancelToken)
+		public FosAppBuilder(CancellationToken cancelToken)
 		{
 			properties = new Dictionary<string, object>();
-			RootMiddleware = new FCgiOwinRoot();
+			RootMiddleware = new FosOwinRoot();
 
 			//WARN: Non standard Owin header. Used by Nancy
 			OnAppDisposing = cancelToken;
@@ -70,7 +70,7 @@ namespace Fos.Owin
 
 		public IAppBuilder New ()
 		{
-			return new FCgiAppBuilder(OnAppDisposing);
+			return new FosAppBuilder(OnAppDisposing);
 		}
 
 		public IDictionary<string, object> Properties {

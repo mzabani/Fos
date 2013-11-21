@@ -2,7 +2,7 @@ using System;
 
 namespace Fos.Logging
 {
-    public class ApplicationError
+    internal class ApplicationError
     {
         public string HttpMethod { get; private set; }
         public string RelativePath { get; private set; }
@@ -31,4 +31,3 @@ namespace Fos.Logging
         }
     }
 }
-

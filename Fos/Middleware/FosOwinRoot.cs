@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace Fos.Owin
 {
-	class FCgiOwinRoot
+	internal class FosOwinRoot
 	{
 		public OwinMiddleware Next;
 

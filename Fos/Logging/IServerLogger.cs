@@ -36,6 +36,8 @@ namespace Fos.Logging
 		void LogApplicationError(Exception e, RequestInfo req);
 		void LogServerError(Exception e, string format, params object[] prms);
 		void LogSocketError(Socket s, Exception e, string format, params object[] prms);
-		void LogInvalidRecordReceived(RecordBase invalidRecord);
+		
+        //TODO: The method below forces Fos's users to reference FastCgiNet explicitly. This is not nice.
+        void LogInvalidRecordReceived(RecordBase invalidRecord);
 	}
 }

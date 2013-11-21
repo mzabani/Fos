@@ -8,7 +8,7 @@ namespace Fos.Owin
 	/// <summary>
 	/// This class is a stub that can be used to define a 404 error page. Register this before your application's middleware.
 	/// </summary>
-	public class PageNotFoundMiddleware
+	internal class PageNotFoundMiddleware
 	{
 		Func<IDictionary<string, object>, Task> Next;
 		string PageNotFoundHtmlFormat = @"<html><head><title>Page not found</title></head><body><h1>Page not found</h1>The page at URL <i>{0}</i> was not found. Check your spelling.</body></html>";

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Owin;
 
-namespace Fos
+namespace Fos.Owin
 {
     using OwinHandler = Func<IDictionary<string, object>, Task>;
 
@@ -13,7 +13,7 @@ namespace Fos
     /// Any request that does not match an entry is passed to the next handler in the pipeline.
     /// </summary>
     /// <remarks>
-    /// Every string in the path mapping dictionary must start with a slash and must not end with a slash.
+    /// Every string in the path mapping dictionary must start with a slash, this slash being the only one in the string.
     /// The context is never modified, whether a match is found or not.
     /// </remarks>
     public class ShuntMiddleware

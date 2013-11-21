@@ -9,16 +9,21 @@ This software is a library for self hosting. This means that you should add a re
 
 ```
 using Fos;
+using Fos.Owin;
 using Owin;
 
+...
+...
+
+private static FosSelfHost FosServer;
 public static void Main(string[] args)
 {
-	using (var fcgiSelfHost = new FosSelfHost(applicationRegistration))
+	using (FosServer = new FosSelfHost(applicationRegistration))
 	{
 		// Bind on 127.0.0.1, port 9000
 		fcgiSelfHost.Bind(System.Net.IPAddress.Loopback, 9000);
 
-		// If you're on *nix and prefer unix sockets
+		// If you're on *nix and like unix sockets
 		fcgiSelfHost.Bind("/tmp/fcgisocket.sock");
 
 		// Start the server.
@@ -28,6 +33,16 @@ public static void Main(string[] args)
 
 static void applicationRegistration(IAppBuilder builder)
 {
+	// To log statistics get access to the pretty statistics page, you need to create a shunt, like this:
+	var statisticsPipeline = builder.New();
+	// Here you would add statistics authentication middleware. One example would be only allowing connections from localhost or from admins
+	// statisticsPipeline.Use<MyStatisticsPageAuthenticationMiddleware>();
+	statisticsPipeline.UseStatisticsLogging(FosServer, new TimeSpan(0, 30, 0));
+
+	// Will shunt to "statisticsPipeline" if request is to "/_stats"
+	var statisticsMapping = new Dictionary<string, IAppBuilder>() { { "/_stats", statisticsPipeline } };
+	builder.Use<ShuntMiddleware>(statisticsMapping); 
+
 	// This is how you register your application's middleware. This is typically one of your Owin compatible Web frameworks
 	builder.Use(typeof(MyApplicationType));
 }
@@ -40,9 +55,11 @@ Currently there are no released versions. You have to clone this repository and 
 Error handling and logging
 --------------------------
 You can define a logger that is used internally when handling connections from the FastCgi Server and other operations. You just need to implement the Fos.Logging.IServerLogger interface and register your instance to your instance of FosSelfHost with the SetLogger method. Please note:
+- Your implementation of IServerLogger MUST NOT THROW ANY EXCEPTIONS. Your implementation will work side by side with the server itself, and if throws an exception it _WILL_ crash the server. If you are unsure, make sure do add a `try .. catch` in every method of your implementation.
 - If you have set a logger that implements IDisposable, it will be disposed when the server is disposed.
 - If the application throws an exception, Fos *will* display it to the visitor. If you don't want exceptions showing, add middleware that will handle exceptions first thing in your pipeline.
 
+You can also set a custom internal logger that ships with Fos. This logger logs access statistics, exceptions thrown by the application and serves a page that lists them in a nice/simple page. If this page doesn't suit you you're free to implement your own statistics logger, of course. This custom internal logger only ships for practical purposes. If you want to set it, look at the main example.
 
 Current state and warning
 -------------------------
@@ -62,5 +79,5 @@ Non standard extensions:
 
 Goals
 -----
-This project's goal is to provide a way for us to use what is best in all worlds to serve our web applications: A robust fastcgi compatible webserver of your choice (nginx, apache, lighttpd and many others), C# or any other language that compiles to CIL and any Mono compatible operating system.
+This project's goal is to provide a way for us to use what is best in all worlds to serve our web applications: A robust fastcgi compatible webserver of your choice (nginx, IIS, apache, lighttpd and many others), C# or any other language that compiles to CIL and any Mono compatible operating system.
 It is also an attempt to stimulate the Owin and .NET OSS ecosystems, since ASP.NET on Mono is likely not to get too much attention in the future, and since it looks like a better, more open alternative to ASP.NET.
