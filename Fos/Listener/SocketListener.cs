@@ -229,6 +229,18 @@ namespace Fos.Listener
 				}
 				catch (Exception e)
 				{
+                    var sockEx = e as SocketException;
+                    if (sockEx != null)
+                    {
+                        // Connection reset is a very rude way of the other side closing the connection, but it could happen.
+                        if (sockEx.SocketErrorCode == SocketError.ConnectionReset)
+                            continue;
+
+                        // Interrupted can also happen
+                        else if (sockEx.SocketErrorCode == SocketError.Interrupted)
+                            continue;
+                    }
+
 					if (Logger != null)
 						Logger.LogServerError(e, "Exception would end the data receiving loop. This is extremely bad. Please file a bug report.");
 				}
@@ -270,7 +282,8 @@ namespace Fos.Listener
 			}
 			catch (Exception e)
 			{
-				//TODO: Handle it
+				if (Logger != null)
+                    Logger.LogSocketError(listenSocket, e, "Error when accepting connection on the listen socket.");
 			}
 		}
 

@@ -35,7 +35,7 @@ namespace Fos.Tests
 				int numFilledStreams = 5;
 				int chunkSize = 65535 * numFilledStreams + 1;
 				byte[] hugeChunk = new byte[chunkSize];
-				Assert.AreEqual(null, lastFilledStream);
+				Assert.IsNull(lastFilledStream);
 				Assert.AreEqual(0, numStreamFills);
 				s.Write(hugeChunk, 0, chunkSize);
 				Assert.AreEqual(numFilledStreams, numStreamFills);

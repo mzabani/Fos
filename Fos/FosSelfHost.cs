@@ -33,7 +33,7 @@ namespace Fos
 		/// <summary>
 		/// Starts this FastCgi server! This method only returns when the server is ready to accept connections.
 		/// </summary>
-		/// <param name="background">True if this method starts the server without blocking, false to block.</param>
+		/// <param name="background">True to start the server without blocking, false to block.</param>
 		public void Start(bool background)
 		{
 			AppBuilder = new FCgiAppBuilder(OnAppDisposal.Token);

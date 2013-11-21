@@ -8,16 +8,16 @@ namespace Fos.Owin
 {
 	public class FCgiAppBuilder : IAppBuilder
 	{
-		Dictionary<string, object> properties;
+		private Dictionary<string, object> properties;
 
 		public CancellationToken OnAppDisposing { get; private set; }
 
-		FCgiOwinRoot RootMiddleware;
+		private FCgiOwinRoot RootMiddleware;
 
 		/// <summary>
 		/// This is the last middleware added through <see cref="Use"/>, or the <see cref="RootMiddleWare"/> in case <see cref="Use"/> has not been called yet.
 		/// </summary>
-		OwinMiddleware LastMiddleware;
+		private OwinMiddleware LastMiddleware;
 
 		public FCgiAppBuilder(CancellationToken cancelToken)
 		{
@@ -29,7 +29,7 @@ namespace Fos.Owin
 			properties.Add("host.OnAppDisposing", cancelToken);
 		}
 
-		public IAppBuilder Use (object middleware, params object[] args)
+		public IAppBuilder Use(object middleware, params object[] args)
 		{
 			Delegate delegateMiddleware = middleware as Delegate;
 			OwinMiddleware newMiddleware;

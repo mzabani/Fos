@@ -20,12 +20,12 @@ namespace Fos.Tests
                 server.SetLogger(logger);
                 server.Start(true);
 
-                Assert.AreEqual(true, logger.ServerWasStarted);
-                Assert.AreEqual(false, logger.ServerWasStopped);
+                Assert.IsTrue(logger.ServerWasStarted);
+                Assert.IsFalse(logger.ServerWasStopped);
             }
 
-            Assert.AreEqual(true, logger.ServerWasStopped);
-            Assert.AreEqual(false, logger.ConnectionWasReceived);
+            Assert.IsTrue(logger.ServerWasStopped);
+            Assert.IsFalse(logger.ConnectionWasReceived);
         }
 
         [Test]
@@ -63,10 +63,10 @@ namespace Fos.Tests
                 browser.ExecuteRequest("http://localhost/", "GET");
             }
             
-            Assert.AreEqual(true, logger.ConnectionWasReceived);
-            Assert.AreEqual(true, logger.ConnectionClosedNormally);
+            Assert.IsTrue(logger.ConnectionWasReceived);
+            Assert.IsTrue(logger.ConnectionClosedNormally);
             Assert.That(logger.RequestInfo != null && logger.RequestInfo.RelativePath == "/" && logger.RequestInfo.ResponseStatusCode== 200);
-            Assert.AreEqual(false, logger.ConnectionClosedAbruptlyWithoutAnyRequestInfo);
+            Assert.IsFalse(logger.ConnectionClosedAbruptlyWithoutAnyRequestInfo);
         }
     }
 }

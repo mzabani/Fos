@@ -53,6 +53,7 @@
     <Compile Include="Logger\NormalConnectionClosing.cs" />
     <Compile Include="SocketTests.cs" />
     <Compile Include="Logger\OneRequestTestLogger.cs" />
+    <Compile Include="ResponseAndRequestHeaders.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

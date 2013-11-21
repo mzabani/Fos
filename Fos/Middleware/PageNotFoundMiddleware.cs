@@ -25,16 +25,7 @@ namespace Fos.Owin
 			{
 				var prms = (OwinContext) owinParameters;
 				
-				int httpStatusCode;
-				try
-				{
-					httpStatusCode = (int)prms["owin.ResponseStatusCode"];
-				}
-				catch (KeyNotFoundException)
-				{
-					// Default status code
-					httpStatusCode = 200;
-				}
+                int httpStatusCode = prms.ResponseStatusCode;
 				
 				if (httpStatusCode == 404)
 				{

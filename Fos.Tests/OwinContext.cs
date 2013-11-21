@@ -38,7 +38,7 @@ namespace Fos.Tests
         {
             var ctx = new OwinContext("1.0", TokenSource.Token);
 
-            Assert.AreEqual(false, ctx.HttpMethodDefined);
+            Assert.IsFalse(ctx.HttpMethodDefined);
         }
 
         [Test]
@@ -46,7 +46,7 @@ namespace Fos.Tests
         {
             var ctx = new OwinContext("1.0", TokenSource.Token);
             
-            Assert.AreEqual(false, ctx.RelativePathDefined);
+            Assert.IsFalse(ctx.RelativePathDefined);
         }
 
         [Test]
@@ -54,7 +54,7 @@ namespace Fos.Tests
         {
             var ctx = new OwinContext("1.0", TokenSource.Token);
             
-            Assert.AreEqual(false, ctx.SomeResponseExists);
+            Assert.IsFalse(ctx.SomeResponseExists);
         }
 	}
 }

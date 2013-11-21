@@ -57,6 +57,10 @@
     <Compile Include="Logging\StatsLogger.cs" />
     <Compile Include="Logging\IServerLogger.cs" />
     <Compile Include="Logging\RequestInfo.cs" />
+    <Compile Include="Logging\StatsPageMiddleware.cs" />
+    <Compile Include="Logging\ApplicationError.cs" />
+    <Compile Include="Middleware\ShuntMiddleware.cs" />
+    <Compile Include="Owin\HeaderDictionary.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

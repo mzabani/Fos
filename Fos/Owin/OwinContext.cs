@@ -12,7 +12,7 @@ namespace Fos.Owin
 		/// <summary>
 		/// The parameters dictionary of the owin pipeline, built through this class's methods.
 		/// </summary>
-		Dictionary<string, object> parametersDictionary;
+		private Dictionary<string, object> parametersDictionary;
 
 		#region IDictionary implementation
 		public void Add (string key, object value)
@@ -110,8 +110,8 @@ namespace Fos.Owin
 		}
 		#endregion
 
-		Dictionary<string, string[]> requestHeaders;
-		Dictionary<string, string[]> responseHeaders;
+		private HeaderDictionary requestHeaders;
+		private HeaderDictionary responseHeaders;
 
 		public CancellationToken CancellationToken { get; private set; }
 
@@ -378,8 +378,8 @@ namespace Fos.Owin
 				throw new ArgumentException("Owin Version must be equal to '1.0'");
 
 			parametersDictionary = new Dictionary<string, object>();
-			requestHeaders = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
-			responseHeaders = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+            requestHeaders = new HeaderDictionary();
+            responseHeaders = new HeaderDictionary();
 			Set("owin.RequestHeaders", requestHeaders);
 			Set("owin.ResponseHeaders", responseHeaders);
 
