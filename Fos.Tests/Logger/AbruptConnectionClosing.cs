@@ -5,6 +5,7 @@ using FastCgiNet;
 using Fos;
 using Fos.Logging;
 using System.Net.Sockets;
+using Fos.Listener;
 
 namespace Fos.Tests
 {
@@ -51,9 +52,11 @@ namespace Fos.Tests
                 using (var sock = ConnectAndGetSocket())
                 {
                     var beginReq = new BeginRequestRecord(1);
-                    var req = new Request(sock, beginReq);
-                    req.Send(beginReq);
-                    sock.Close();
+                    using (var req = new FosRequest(sock, logger))
+                    {
+                        req.SetBeginRequest(beginReq);
+                        req.Send(beginReq);
+                    }
                 }
                 
                 //TODO: Can't we do better than this?

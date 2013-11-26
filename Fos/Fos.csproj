@@ -42,9 +42,7 @@
     <Compile Include="Middleware\PageNotFoundMiddleware.cs" />
     <Compile Include="Owin\ExtensionMethods.cs" />
     <Compile Include="Owin\OwinContext.cs" />
-    <Compile Include="FragmentedResponseStream.cs" />
     <Compile Include="FosSelfHost.cs" />
-    <Compile Include="FragmentedRequestStream.cs" />
     <Compile Include="CustomPages\EmptyResponsePage.cs" />
     <Compile Include="CustomPages\ApplicationErrorPage.cs" />
     <Compile Include="CustomPages\ICustomPage.cs" />
@@ -61,6 +59,8 @@
     <Compile Include="Logging\StatsLogging\StatsPageMiddleware.cs" />
     <Compile Include="Owin\FosAppBuilder.cs" />
     <Compile Include="Middleware\FosOwinRoot.cs" />
+    <Compile Include="SocketHelper.cs" />
+    <Compile Include="Listener\FosStdoutStream.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

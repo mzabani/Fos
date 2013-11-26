@@ -6,31 +6,49 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Threading;
 using System.IO;
+using FastCgiNet.Streams;
+using System.Net.Sockets;
 
 namespace Fos.Listener
 {
-	enum ConnectionStatus {
+	/*enum ConnectionStatus {
 		BeginRequestReceived,
 		ParamsReceived,
 		EmptyStdinReceived,
 		EndRequestSent
-	}
+	}*/
 
-	internal class FosRequest
+	internal class FosRequest : SocketRequest
 	{
-		public Request Request { get; private set; }
-		public ushort RequestId
-		{
-			get
-			{
-				return Request.RequestId;
-			}
-		}
-		public bool ApplicationMustCloseConnection { get; private set; }
-		public ConnectionStatus Status { get; private set; }
+		//public SocketRequest Request { get; private set; }
+//		public ushort RequestId
+//		{
+//			get
+//			{
+//				return Request.RequestId;
+//			}
+//		}
+//		public bool ApplicationMustCloseConnection { get; private set; }
+		//public ConnectionStatus Status { get; private set; }
 		
+        private FosStdoutStream stdout;
+        public override FastCgiStream Stdout
+        {
+            get
+            {
+                return stdout;
+            }
+        }
+
         /// <summary>
-        /// The Owin Dictionary. This is null until a ParamsRecord is received.
+        /// Some applications need to control when flushing the response to the visitor is done; if that is the case, set this to <c>false</c>.
+        /// If the application does not require that, then Fos will flush the response itself periodically to avoid keeping too 
+        /// many buffers around and to avoid an idle connection.
+        /// </summary>
+        public bool FlushPeriodically;
+
+        /// <summary>
+        /// The Owin Context dictionary. This is never null.
         /// </summary>
         public OwinContext OwinContext { get; private set; }
 
@@ -86,23 +104,6 @@ namespace Fos.Listener
 			SendRecord(headersRecord);
 		}
 
-		/// <summary>
-		/// Sends all parts of the response's body (no headers) that haven't been sent. If there is nothing to be sent,
-		/// this method does nothing (i.e. it does not send an empty FastCgi record).
-		/// </summary>
-		private void SendUnsentBodyResponse()
-		{
-			if (OwinContext.ResponseBody.Length == 0)
-				throw new InvalidOperationException("No stdin records have been received yet, and as such the response body has not been set up.");
-
-			// Only the last unfilled stream has not been sent yet..
-			RecordContentsStream lastStream = OwinContext.ResponseBody.LastUnfilledStream;
-			if (lastStream.Length == 0)
-				return;
-
-			SendStdoutRecord(lastStream);
-		}
-
 		private void SendErrorPage(Exception applicationEx)
 		{
 			var errorPage = new Fos.CustomPages.ApplicationErrorPage(applicationEx);
@@ -110,12 +111,12 @@ namespace Fos.Listener
 			OwinContext.SetResponseHeader("Content-Type", "text/html");
 			OwinContext.ResponseStatusCodeAndReason = "500 Internal Server Error";
 
-			using (var sw = new StreamWriter(OwinContext.ResponseBody))
+			using (var sw = new StreamWriter(Stdout))
 			{
 				sw.Write(errorPage.Contents);
 			}
 
-			SendUnsentBodyResponse();
+            Stdout.Flush();
 		}
 
 		private void SendEmptyResponsePage()
@@ -125,12 +126,12 @@ namespace Fos.Listener
 			OwinContext.SetResponseHeader("Content-Type", "text/html");
 			OwinContext.ResponseStatusCodeAndReason = "500 Internal Server Error";
 			
-			using (var sw = new StreamWriter(OwinContext.ResponseBody))
+			using (var sw = new StreamWriter(Stdout))
 			{
 				sw.Write(emptyResponsePage.Contents);
 			}
 
-			SendUnsentBodyResponse();
+            Stdout.Flush();
 		}
 
 		private void SendEndRequest()
@@ -140,6 +141,7 @@ namespace Fos.Listener
 			SendRecord(endRequestRec);
 		}
 
+        /*
 		/// <summary>
 		/// Sends a Stdout Record with its contents set to <paramref name="contents"/>. The stream passed is disposed
 		/// after the record is sent.
@@ -163,7 +165,7 @@ namespace Fos.Listener
 					SendRecord(stdoutRec);
 				}
 			}
-		}
+		}*/
 
 		private void TestRecord(RecordBase rec)
 		{
@@ -177,14 +179,9 @@ namespace Fos.Listener
 		{
 			TestRecord(rec);
 
-			Status = ConnectionStatus.ParamsReceived;
-			if (OwinContext == null)
-			{
-				CancellationSource = new CancellationTokenSource();
-				OwinContext = new OwinContext("1.0", CancellationSource.Token);
-			}
-
-			OwinContext.AddParamsRecord(rec);
+            this.AddReceivedRecord(rec);
+            if (ParamsStream.IsComplete)
+			    OwinContext.AddParams(ParamsStream);
 		}
 
 		/// <summary>
@@ -196,24 +193,15 @@ namespace Fos.Listener
 		{
 			TestRecord(rec);
 
-			// Append the request body of this record to the entire request body
-			OwinContext.RequestBody.AppendStream(rec.Contents);
-
-			// Update status
-			if (rec.EmptyContentData)
-				Status = ConnectionStatus.EmptyStdinReceived;
+            // Append the request body of this record to the entire request body
+            AddReceivedRecord(rec);
 
 			// Only respond if the last empty stdin was received
-			if (Status != ConnectionStatus.EmptyStdinReceived)
+			if (!Stdin.IsComplete)
 				return null;
 
-			// Prepare the answer..
-			var responseBodyStream = OwinContext.ResponseBody;
-
-			// Sign up for the first write, because we need to send the headers when that happens, and sign up to send
-			// general data when records fill up
-			responseBodyStream.OnFirstWrite += SendHeaders;
-			responseBodyStream.OnStreamFill += SendStdoutRecord;
+			// Sign up for the first write, because we need to send the headers when that happens (Owin spec)
+			stdout.OnFirstWrite += SendHeaders;
 
 			// Now pass it to the Owin pipeline
 			Task applicationResponse;
@@ -248,31 +236,15 @@ namespace Fos.Listener
 
 					// Show the exception to the visitor
 					SendErrorPage(e);
-
-					// End the FastCgi connection
-					SendEndRequest();
-					
-					// Return a task that indicates completion..
-					return ApplicationMustCloseConnection;
 				}
-
-				// Send the remaining contents if they haven't been sent (if they are not full)
-				RecordContentsStream lastStream = responseBodyStream.LastUnfilledStream;
-				if (lastStream.Length > 0)
-					SendStdoutRecord(lastStream);
-				else if (OwinContext.SomeResponseExists && OwinContext.ResponseBody.Length == 0)
-				{
-					// If some response exists but the body response stream has not been written to, we must send the headers
-					SendHeaders();
-				}
-				else
-				{
+				else if (!OwinContext.SomeResponseExists)
+                {
 					// If we are here, then no response was set by the application, i.e. not a single header or response body
 					SendEmptyResponsePage();
 				}
 
-				// Send empty stdout record
-				SendStdoutRecord(null);
+				// Flush and end the stdout stream
+                Stdout.Dispose();
 
 				SendEndRequest();
 
@@ -286,26 +258,29 @@ namespace Fos.Listener
 		/// <param name="rec">Rec.</param>
 		private void SendRecord(RecordBase rec)
 		{
-			if (rec.RecordType == RecordType.FCGIEndRequest)
-				Status = ConnectionStatus.EndRequestSent;
+//			if (rec.RecordType == RecordType.FCGIEndRequest)
+//				Status = ConnectionStatus.EndRequestSent;
 
-			if (Request.Send(rec) == false)
+			if (Send(rec) == false)
 			{
 				CancellationSource.Cancel();
 			}
 		}
 
-		public FosRequest(Request req, BeginRequestRecord beginRequestRecord, Fos.Logging.IServerLogger logger)
+		public FosRequest(Socket sock, Fos.Logging.IServerLogger logger)
+            : base(sock, false)
 		{
-			if (beginRequestRecord == null)
-				throw new ArgumentNullException("beginRequestRecord");
-			else if (req == null)
-				throw new ArgumentNullException("req");
-
 			Logger = logger;
-			Status = ConnectionStatus.BeginRequestReceived;
-			Request = req;
-			ApplicationMustCloseConnection = beginRequestRecord.ApplicationMustCloseConnection;
+            CancellationSource = new CancellationTokenSource();
+            OwinContext = new OwinContext("1.0", CancellationSource.Token);
+
+            // Streams
+            stdout = new FosStdoutStream(sock);
+            OwinContext.ResponseBody = Stdout;
+            OwinContext.RequestBody = Stdin;
+			//Status = ConnectionStatus.BeginRequestReceived;
+			//Request = req;
+			//ApplicationMustCloseConnection = beginRequestRecord.ApplicationMustCloseConnection;
 		}
 	}
 }

@@ -14,9 +14,6 @@ namespace Fos.Tests.Middleware
 		{
 			return Task.Factory.StartNew(() =>
             {
-				var context = (OwinContext) owinContext;
-
-				//context
 			});
 		}
 

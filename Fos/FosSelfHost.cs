@@ -36,7 +36,14 @@ namespace Fos
                 return FastCgiListener.IsRunning;
             }
         }
-        
+
+        /// <summary>
+        /// Some applications need to control when flushing the response to the visitor is done; if that is the case, set this to <c>false</c>.
+        /// If the application does not require that, then Fos will flush the response itself periodically to avoid keeping too 
+        /// many buffers around and to avoid an idle connection. The default value for this is <c>true</c>.
+        /// </summary>
+        public bool FlushPeriodically = true;
+
         private IServerLogger BuildLogger()
         {
             if (Logger == null && StatisticsLogger == null)
@@ -97,15 +104,19 @@ namespace Fos
 			this.Logger = logger;
 		}
 
-		private void OnReceiveBeginRequest(FosRequest req, BeginRequestRecord rec) {
+		private void OnReceiveBeginRequest(FosRequest req, BeginRequestRecord rec)
+        {
 			req.ApplicationPipelineEntry = OwinPipelineEntry;
+            req.FlushPeriodically = FlushPeriodically;
 		}
 
-		private void OnReceiveParams(FosRequest req, ParamsRecord rec) {
+		private void OnReceiveParams(FosRequest req, ParamsRecord rec)
+        {
 			req.ReceiveParams(rec);
 		}
 
-		private void OnReceiveStdin(FosRequest req, StdinRecord rec) {
+		private void OnReceiveStdin(FosRequest req, StdinRecord rec)
+        {
 			var onCloseConnection = req.ReceiveStdin(rec);
 			if (onCloseConnection == null)
 				return;
@@ -116,7 +127,9 @@ namespace Fos
                 // Remember that connections closed by the other side abruptly have already
                 // been closed by the listener loop, so we shouldn't call Request.CloseSocket() here again
 				if (t.Result)
-					req.Request.CloseSocket();
+                {
+                    req.Dispose();
+                }
 			});
 		}
 

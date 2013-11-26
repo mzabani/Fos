@@ -36,7 +36,6 @@ namespace Fos.Listener
 			}
 		}
 		private IServerLogger Logger;
-		private RecordFactory RecFactory = new RecordFactory();
 
 		public bool IsRunning { get; private set; }
 
@@ -67,35 +66,35 @@ namespace Fos.Listener
 		/// <summary>
 		/// Closes and disposes of a Request and its Socket while also removing it from the internal collection of open sockets.
 		/// </summary>
-		private void OnAbruptSocketClose(Request req, FosRequest fosRequest)
+		private void OnAbruptSocketClose(Socket sock, FosRequest fosRequest)
 		{
 			ByteReaderAndRequest trash;
-			OpenSockets.TryRemove(req.Socket, out trash);
-            req.Socket.Dispose();
+			OpenSockets.TryRemove(sock, out trash);
+            fosRequest.Dispose();
 
 			if (Logger != null)
 			{
 				if (fosRequest == null)
-					Logger.LogConnectionClosedAbruptly(req.Socket, null);
+					Logger.LogConnectionClosedAbruptly(sock, null);
 				else
-					Logger.LogConnectionClosedAbruptly(req.Socket, new RequestInfo(fosRequest));
+					Logger.LogConnectionClosedAbruptly(sock, new RequestInfo(fosRequest));
 			}
 		}
 		
 		/// <summary>
 		/// Closes and disposes of a Request and its Socket while also removing it from the internal collection of open sockets.
 		/// </summary>
-		private void OnNormalSocketClose(Request req, FosRequest fosRequest)
+		private void OnNormalSocketClose(SocketRequest req, FosRequest fosRequest)
 		{
 			if (fosRequest == null)
 				throw new ArgumentNullException("fosRequest");
 		    
 			ByteReaderAndRequest trash;
-			OpenSockets.TryRemove(req.Socket, out trash);
+			OpenSockets.TryRemove(fosRequest.Socket, out trash);
 			
 			if (Logger != null)
 			{
-				Logger.LogConnectionEndedNormally(req.Socket, new RequestInfo(fosRequest));
+				Logger.LogConnectionEndedNormally(fosRequest.Socket, new RequestInfo(fosRequest));
 			}
 		}
 
@@ -134,7 +133,7 @@ namespace Fos.Listener
                             // from OpenSockets from a normal connection closing
                             continue;
                         }
-						var fcgiRequest = brr.FCgiRequest;
+						//var fcgiRequest = brr.FCgiRequest;
 						var fosRequest = brr.FosRequest;
 						var byteReader = brr.ByteReader;
 
@@ -147,14 +146,14 @@ namespace Fos.Listener
                         }
                         catch (ObjectDisposedException)
                         {
-                            OnAbruptSocketClose(fcgiRequest, fosRequest);
+                            OnAbruptSocketClose(sock, fosRequest);
                             continue;
                         }
                         catch (SocketException e)
                         {
-                            if (e.SocketErrorCode == SocketError.Shutdown)
+                            if (SocketHelper.IsConnectionAbortedByTheOtherSide(e))
                             {
-                                OnAbruptSocketClose(fcgiRequest, fosRequest);
+                                OnAbruptSocketClose(sock, fosRequest);
                                 continue;
                             }
                             else
@@ -162,7 +161,7 @@ namespace Fos.Listener
                         }
                         if (bytesRead == 0)
                         {
-                            OnAbruptSocketClose(fcgiRequest, fosRequest);
+                            OnAbruptSocketClose(sock, fosRequest);
                             continue;
                         }
 
@@ -175,7 +174,7 @@ namespace Fos.Listener
 							{
 								if (abortRequest)
 								{
-									fcgiRequest.CloseSocket();
+									fosRequest.CloseSocket();
 									break;
 								}
 
@@ -184,15 +183,15 @@ namespace Fos.Listener
 									case RecordType.FCGIBeginRequest:
 										// We need this record to create our special FosRequest!
 										var beginRec = (BeginRequestRecord) builtRecord;
-										fosRequest = new FosRequest(fcgiRequest, beginRec, Logger);
-										brr.FosRequest = fosRequest;
-										fcgiRequest.SetBeginRequest(beginRec);
+//										fosRequest = new FosRequest(fcgiRequest.Socket, beginRec, Logger);
+//										brr.FosRequest = fosRequest;
+										fosRequest.SetBeginRequest(beginRec);
 										
 										// Also, this means termination now has request data
-										fcgiRequest.OnSocketClose += () => OnNormalSocketClose(fcgiRequest, fosRequest);
+										fosRequest.OnSocketClose += () => OnNormalSocketClose(null, fosRequest);
 										
 										// Calls whoever is interested in knowing of this record!
-										OnReceiveBeginRequestRecord(brr.FosRequest, beginRec);
+										OnReceiveBeginRequestRecord(fosRequest, beginRec);
 										
 										break;
 									
@@ -222,25 +221,13 @@ namespace Fos.Listener
 							if (Logger != null)
 								Logger.LogServerError(e, "An internal event handler did not handle an exception thrown by the application");
 
-							fcgiRequest.CloseSocket();
+							fosRequest.CloseSocket();
 							continue;
 						}
 					}
 				}
 				catch (Exception e)
-				{
-                    var sockEx = e as SocketException;
-                    if (sockEx != null)
-                    {
-                        // Connection reset is a very rude way of the other side closing the connection, but it could happen.
-                        if (sockEx.SocketErrorCode == SocketError.ConnectionReset)
-                            continue;
-
-                        // Interrupted can also happen
-                        else if (sockEx.SocketErrorCode == SocketError.Interrupted)
-                            continue;
-                    }
-
+                {
 					if (Logger != null)
 						Logger.LogServerError(e, "Exception would end the data receiving loop. This is extremely bad. Please file a bug report.");
 				}
@@ -258,7 +245,7 @@ namespace Fos.Listener
 		/// <summary>
 		/// Accepts all pending connections on a socket asynchronously.
 		/// </summary>
-		void BeginAcceptNewConnections(Socket listenSocket)
+		private void BeginAcceptNewConnections(Socket listenSocket)
 		{
 			Socket newConnection;
 			try
@@ -274,9 +261,9 @@ namespace Fos.Listener
 				while (listenSocket.AcceptAsync(args) == true);*/
 
 				newConnection = listenSocket.Accept();
-				var request = new Request(newConnection);
+				//var request = new SocketRequest(newConnection, false);
 				
-				OpenSockets[newConnection] = new ByteReaderAndRequest(new ByteReader(RecFactory), request);
+				OpenSockets[newConnection] = new ByteReaderAndRequest(new RecordFactory(), newConnection, Logger);
 				if (Logger != null)
 					Logger.LogConnectionReceived(newConnection);
 			}
@@ -361,7 +348,7 @@ namespace Fos.Listener
 
 			foreach (var socketAndRequest in OpenSockets)
 			{
-				socketAndRequest.Value.FCgiRequest.CloseSocket();
+				socketAndRequest.Value.FosRequest.CloseSocket();
 			}
 		}
 
@@ -385,7 +372,7 @@ namespace Fos.Listener
 			}
 		}
 
-		public SocketListener ()
+		public SocketListener()
 		{
 			tcpListenSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 #if __MonoCs__

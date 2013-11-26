@@ -5,6 +5,7 @@ using System.Net;
 using System.Linq;
 using System.Net.Sockets;
 using System.IO;
+using FastCgiNet.Streams;
 
 namespace Fos.Tests
 {
@@ -17,8 +18,8 @@ namespace Fos.Tests
 		private int FastCgiServerPort;
 		private Socket SocketToUse;
 
-		protected FragmentedRequestStream<RecordContentsStream> ResponseStream = new FragmentedRequestStream<RecordContentsStream>();
-        protected Request Request;
+        protected FastCgiStream ResponseStream;
+        protected SocketRequest Request;
         protected ushort RequestId
         {
             get
@@ -33,7 +34,7 @@ namespace Fos.Tests
             var beginRequestRecord = new BeginRequestRecord(requestId);
             beginRequestRecord.ApplicationMustCloseConnection = true;
             beginRequestRecord.Role = Role.Responder;
-            Request = new Request(sock, beginRequestRecord);
+            Request = new SocketRequest(sock, beginRequestRecord, true);
             Request.Send(beginRequestRecord);
         }
 
@@ -55,9 +56,11 @@ namespace Fos.Tests
 			var uri = new Uri(url);
 			Socket sock = SocketToUse ?? new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
+            ResponseStream = new FastCgiNet.Streams.SocketStream(sock, RecordType.FCGIStdout, true);
+
 			sock.Connect(new IPEndPoint(FastCgiServer, FastCgiServerPort));
 
-			var reader = new ByteReader(new RecordFactory());
+			var reader = new RecordFactory();
 
             // Begin request
             SendBeginRequest(sock);
@@ -74,20 +77,19 @@ namespace Fos.Tests
 			// Build our records!
 			byte[] buf = new byte[4096];
 			int bytesRead;
-			ResponseStream = new FragmentedRequestStream<RecordContentsStream>();
 			while ((bytesRead = sock.Receive(buf)) > 0)
 			{
 				foreach (RecordBase rec in reader.Read(buf, 0, bytesRead))
 				{
 					if (rec.RecordType == RecordType.FCGIStdout)
 					{
-						var contents = ((StreamRecord)rec).Contents;
+						var contents = ((StreamRecordBase)rec).Contents;
 						ResponseStream.AppendStream(contents);
 					}
 				}
 			}
 
-			sock.Close();
+            sock.Dispose();
 
 			return new BrowserResponse(ResponseStream);
 		}

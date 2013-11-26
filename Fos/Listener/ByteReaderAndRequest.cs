@@ -10,25 +10,25 @@ namespace Fos.Listener
 	/// </summary>
 	internal class ByteReaderAndRequest
 	{
-		public ByteReader ByteReader { get; private set; }
+		public RecordFactory ByteReader { get; private set; }
 
-		public Request FCgiRequest { get; private set; }
+		//public SocketRequest FCgiRequest { get; private set; }
 
-		/// <summary>
+		/*/// <summary>
 		/// This will be null until a BeginRequestRecord arrives.
-		/// </summary>
+		/// </summary>*/
 		public FosRequest FosRequest;
 
-		public ByteReaderAndRequest(ByteReader reader, Request req)
+		public ByteReaderAndRequest(RecordFactory reader, Socket sock, Fos.Logging.IServerLogger logger)
 		{
 			if (reader == null)
 				throw new ArgumentNullException("reader");
-			else if (req == null)
-				throw new ArgumentNullException("req");
+			else if (sock == null)
+				throw new ArgumentNullException("sock");
 
 			ByteReader = reader;
-			FCgiRequest = req;
-			FosRequest = null;
+			//FCgiRequest = req;
+            FosRequest = new FosRequest(sock, logger);
 		}
 	}
 }

@@ -37,26 +37,27 @@ namespace Fos.Tests
 					Console.WriteLine("{0}: {1}", headerName, headerValue);
 					Headers.Add(headerName, headerValue);
 				}
-			}
 
-			Console.WriteLine ("4");
 
-			// TODO: Why do we need to do this? Something is very strange here!
-			response.Position = Headers.Sum (h => h.Key.Length + h.Value.Length + 4) + 2;
-			response.Seek("Status: ".Length + StatusCode.ToString().Length + (StatusReason == null ? 0 : StatusReason.Length) + 2, SeekOrigin.Current);
-			// Write the response body and rewind the stream
-			byte[] buf = new byte[4096];
-			int bytesRead;
-			while ((bytesRead = response.Read(buf, 0, buf.Length)) > 0)
-			{
-				Console.WriteLine("Read {0} bytes", bytesRead);
-				for (int i = 0; i < bytesRead; ++i)
-					Console.Write ((char)buf[i]);
-				ResponseBody.Write(buf, 0, bytesRead);
-			}
+    			Console.WriteLine ("4");
 
-			ResponseBody.Position = 0;
-			response.Dispose();
+    			// TODO: Why do we need to do this? Something is very strange here!
+    			response.Position = Headers.Sum (h => h.Key.Length + h.Value.Length + 4) + 2;
+    			response.Seek("Status: ".Length + StatusCode.ToString().Length + (StatusReason == null ? 0 : StatusReason.Length) + 2, SeekOrigin.Current);
+    			// Write the response body and rewind the stream
+    			byte[] buf = new byte[4096];
+    			int bytesRead;
+    			while ((bytesRead = response.Read(buf, 0, buf.Length)) > 0)
+    			{
+    				Console.WriteLine("Read {0} bytes", bytesRead);
+    				for (int i = 0; i < bytesRead; ++i)
+    					Console.Write ((char)buf[i]);
+    				ResponseBody.Write(buf, 0, bytesRead);
+    			}
+
+    			ResponseBody.Position = 0;
+    			response.Dispose();
+            }
 		}
 
 		public void Dispose()

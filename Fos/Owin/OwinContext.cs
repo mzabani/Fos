@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 using System.Threading;
+using FastCgiNet.Streams;
 
 namespace Fos.Owin
 {
@@ -209,11 +210,26 @@ namespace Fos.Owin
 			}
 		}
 
-		public FragmentedRequestStream<RecordContentsStream> RequestBody
+        /// <summary>
+        /// Sets Owin parameters according to the received FastCgi Params in <paramref name="stream"/>.
+        /// </summary>
+        internal void AddParams(FastCgiStream stream) {
+            if (stream == null)
+                throw new ArgumentNullException("stream");
+
+            using (var reader = new FastCgiNet.Streams.NvpReader(stream))
+            {
+                NameValuePair nvp;
+                while ((nvp = reader.Read()) != null)
+                    SetOwinParametersFromFastCgiNvp(nvp);
+            }
+        }
+
+		public FastCgiStream RequestBody
 		{
 			get
 			{
-				return (FragmentedRequestStream<RecordContentsStream>)parametersDictionary["owin.RequestBody"];
+				return (FastCgiStream)parametersDictionary["owin.RequestBody"];
 			}
 			internal set
 			{
@@ -221,11 +237,11 @@ namespace Fos.Owin
 			}
 		}
 
-		public FragmentedResponseStream<RecordContentsStream> ResponseBody
+		public FastCgiStream ResponseBody
 		{
 			get
 			{
-				return (FragmentedResponseStream<RecordContentsStream>)parametersDictionary["owin.ResponseBody"];
+                return (FastCgiStream)parametersDictionary["owin.ResponseBody"];
 			}
 			internal set
 			{
@@ -290,12 +306,13 @@ namespace Fos.Owin
 		}
 
 		/// <summary>
-		/// If the application set either a response status code, a response reason phrase, some header or some response body, this is true. It is false otherwise.
+		/// If the application set either a response status code, a response reason phrase, some header or some response body, this is <c>true</c>. It is <c>false</c> otherwise.
 		/// </summary>
-		public bool SomeResponseExists {
+		public bool SomeResponseExists
+        {
 			get
 			{
-				return this.ContainsKey("owin.ResponseStatusCode") || this.ContainsKey("owin.ResponseReasonPhrase") || responseHeaders.Any() || ResponseBody.Length > 0;
+				return this.ContainsKey("owin.ResponseStatusCode") || this.ContainsKey("owin.ResponseReasonPhrase") || responseHeaders.Any() || (this.ContainsKey("owin.ResponseBody") && ResponseBody.Length > 0);
 			}
 		}
 
@@ -387,10 +404,6 @@ namespace Fos.Owin
 
 			CancellationToken = token;
 			Set("owin.CallCancelled", token);
-
-			// Empty bodies
-			RequestBody = new FragmentedRequestStream<RecordContentsStream>();
-			ResponseBody = new FragmentedResponseStream<RecordContentsStream>();
 
 			// It is http (not https) until proven otherwise
 			Set("owin.RequestScheme", "http");
