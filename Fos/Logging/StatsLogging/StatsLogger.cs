@@ -95,6 +95,20 @@ namespace Fos.Logging
         {
             return ApplicationErrors.Reverse();
         }
+
+        private readonly object serverErrorsLock = new object();
+        /// <summary>
+        /// All server errors.
+        /// </summary>
+        private LinkedList<Exception> ServerErrors = new LinkedList<Exception>();
+
+        /// <summary>
+        /// Enumerates all server errors in descending order of when they happened.
+        /// </summary>
+        public IEnumerable<Exception> GetAllServerErrors()
+        {
+            return ServerErrors.Reverse();
+        }
 		
 		public IList<DateTime> ServerStarted { get; private set; }
 		public IList<DateTime> ServerStopped { get; private set; }
@@ -157,83 +171,101 @@ namespace Fos.Logging
 
 		public void LogConnectionReceived(Socket createdSocket)
 		{
-			var now = Now;
-			
-			DateTime lastAggrPeriod;
-			lock (connectionReceivedLock)
-			{
-				TotalConnectionsReceived++;
-				ConcurrentConnectionsNow++;
+            try
+            {
+    			var now = Now;
+    			
+    			DateTime lastAggrPeriod;
+    			lock (connectionReceivedLock)
+    			{
+    				TotalConnectionsReceived++;
+    				ConcurrentConnectionsNow++;
 
-				// Updates maximum concurrent connections if we have to
-				if (MaxConcurrentConnections < ConcurrentConnectionsNow)
-					MaxConcurrentConnections = ConcurrentConnectionsNow;
+    				// Updates maximum concurrent connections if we have to
+    				if (MaxConcurrentConnections < ConcurrentConnectionsNow)
+    					MaxConcurrentConnections = ConcurrentConnectionsNow;
 
-				lastAggrPeriod = LastAggregationPeriodStart;
-				if (LastAggregationPeriodStart + AggregationInterval <= now)
-				{
-					LastAggregationPeriodStart += AggregationInterval;
-					lastAggrPeriod = LastAggregationPeriodStart;
-				}
-			}
+    				lastAggrPeriod = LastAggregationPeriodStart;
+    				if (LastAggregationPeriodStart + AggregationInterval <= now)
+    				{
+    					LastAggregationPeriodStart += AggregationInterval;
+    					lastAggrPeriod = LastAggregationPeriodStart;
+    				}
+    			}
 
-            // Start the Watch
-            var stopWatch = new Stopwatch();
-            RequestWatches[createdSocket] = stopWatch;
-            stopWatch.Start();
-			
-			// Add it to the aggregated connections
-			ConnectionsReceivedAggregated[lastAggrPeriod] = ConnectionsReceivedAggregated[lastAggrPeriod] + 1;
+                // Start the Watch
+                var stopWatch = new Stopwatch();
+                RequestWatches[createdSocket] = stopWatch;
+                stopWatch.Start();
+    			
+    			// Add it to the aggregated connections
+    			ConnectionsReceivedAggregated[lastAggrPeriod] = ConnectionsReceivedAggregated[lastAggrPeriod] + 1;
+            }
+            catch
+            {
+            }
 		}
 		
 		public void LogConnectionClosedAbruptly(Socket s, RequestInfo req)
 		{
 			//TODO: Lock
-			StopConnectionTimer(s);
-			AbruptConnectionCloses++;
+            try
+            {
+    			StopConnectionTimer(s);
+    			AbruptConnectionCloses++;
+            }
+            catch
+            {
+            }
 		}
 
 		public void LogConnectionEndedNormally(Socket s, RequestInfo req)
 		{
-			var now = Now;
-			
-			TimeSpan requestTime;
-			lock (connectionReceivedLock)
-			{
-				ConcurrentConnectionsNow--;
-				
-				// Stop the watch
-				requestTime = StopConnectionTimer(s);
-			}
-			
-			if (req.ResponseStatusCode != 200 && req.ResponseStatusCode != 301)
-				return;
-			
-			// Look for the times with our method
-            // We could do with a global lock here, but that just sounds so bad.
-            // Instead, we try to avoid a global lock as much as possible, and count on another method
-            // to give us a finer grained lock.
-            LinkedList<RequestTimes> timesForEndpoint;
-            lock (CreateAndReturnRelativePathLock(req.RelativePath, out timesForEndpoint))
+            try
             {
-                var verbTimes = timesForEndpoint.FirstOrDefault(t => t.HttpMethod == req.HttpMethod);
-                if (verbTimes == null)
+    			var now = Now;
+    			
+    			TimeSpan requestTime;
+    			lock (connectionReceivedLock)
+    			{
+    				ConcurrentConnectionsNow--;
+    				
+    				// Stop the watch
+    				requestTime = StopConnectionTimer(s);
+    			}
+    			
+    			if (req.ResponseStatusCode != 200 && req.ResponseStatusCode != 301)
+    				return;
+    			
+    			// Look for the times with our method
+                // We could do with a global lock here, but that just sounds so bad.
+                // Instead, we try to avoid a global lock as much as possible, and count on another method
+                // to give us a finer grained lock.
+                LinkedList<RequestTimes> timesForEndpoint;
+                lock (CreateAndReturnRelativePathLock(req.RelativePath, out timesForEndpoint))
                 {
-                    // First request to this endpoint with this method. Add it.
-                    verbTimes = new RequestTimes(req.HttpMethod, req.RelativePath, requestTime);
-                    timesForEndpoint.AddLast(verbTimes);
-                } else
-                {
-                    // Just update the times
-                    if (verbTimes.MinimumTime > requestTime)
-                        verbTimes.MinimumTime = requestTime;
-                    if (verbTimes.MaximumTime < requestTime)
-                        verbTimes.MaximumTime = requestTime;
-				
-                    //TODO: Precision issues with the line below
-                    verbTimes.AverageTime = new TimeSpan((verbTimes.NumRequests * verbTimes.AverageTime.Ticks + requestTime.Ticks) / (verbTimes.NumRequests + 1));
-                    verbTimes.NumRequests++;
+                    var verbTimes = timesForEndpoint.FirstOrDefault(t => t.HttpMethod == req.HttpMethod);
+                    if (verbTimes == null)
+                    {
+                        // First request to this endpoint with this method. Add it.
+                        verbTimes = new RequestTimes(req.HttpMethod, req.RelativePath, requestTime);
+                        timesForEndpoint.AddLast(verbTimes);
+                    } else
+                    {
+                        // Just update the times
+                        if (verbTimes.MinimumTime > requestTime)
+                            verbTimes.MinimumTime = requestTime;
+                        if (verbTimes.MaximumTime < requestTime)
+                            verbTimes.MaximumTime = requestTime;
+    				
+                        //TODO: Precision issues with the line below
+                        verbTimes.AverageTime = new TimeSpan((verbTimes.NumRequests * verbTimes.AverageTime.Ticks + requestTime.Ticks) / (verbTimes.NumRequests + 1));
+                        verbTimes.NumRequests++;
+                    }
                 }
+            }
+            catch
+            {
             }
 		}
 
@@ -247,7 +279,10 @@ namespace Fos.Logging
 
 		public void LogServerError(Exception e, string format, params object[] prms)
 		{
-			//throw new NotImplementedException ();
+            lock (serverErrorsLock)
+            {
+                ServerErrors.AddLast(e);
+            }
 		}
 
 		public void LogSocketError(Socket s, Exception e, string format, params object[] prms)

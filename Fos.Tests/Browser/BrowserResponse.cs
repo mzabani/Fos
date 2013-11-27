@@ -32,12 +32,12 @@ namespace Fos.Tests
 				while ((line = reader.ReadLine()) != string.Empty)
 				{
 					spaceIdx = line.IndexOf(' ');
+                    Console.WriteLine(line);
 					string headerName = line.Substring(0, spaceIdx - 1);
 					string headerValue = line.Substring(spaceIdx + 1);
-					Console.WriteLine("{0}: {1}", headerName, headerValue);
+					//Console.WriteLine("{0}: {1}", headerName, headerValue);
 					Headers.Add(headerName, headerValue);
 				}
-
 
     			Console.WriteLine ("4");
 
@@ -54,10 +54,9 @@ namespace Fos.Tests
     					Console.Write ((char)buf[i]);
     				ResponseBody.Write(buf, 0, bytesRead);
     			}
-
-    			ResponseBody.Position = 0;
-    			response.Dispose();
             }
+
+            ResponseBody.Position = 0;
 		}
 
 		public void Dispose()

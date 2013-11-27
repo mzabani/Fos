@@ -54,7 +54,7 @@ namespace Fos.Tests
                     var beginReq = new BeginRequestRecord(1);
                     using (var req = new FosRequest(sock, logger))
                     {
-                        req.SetBeginRequest(beginReq);
+                        req.AddReceivedRecord(beginReq);
                         req.Send(beginReq);
                     }
                 }

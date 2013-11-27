@@ -28,17 +28,22 @@ namespace Fos.Logging
         private string EndOfBody()
         {
             return @"<script type=""text/javascript"">
-                    document.getElementById('request_times').onclick = function(e) {
-                        var evt = e || window.event;
-                        var el = evt.target || evt.srcElement;
-                        if (el.nodeName == 'TD' && el.getAttribute('class') == 'see_details') {
-                            var nextRow = el.parentElement.nextElementSibling;
-                            if (!nextRow.style.display || nextRow.style.display == 'none')
-                                nextRow.style.display = 'table-row';
-                            else
-                                nextRow.style.display = 'none';
+                        function showDetailsClick(e) {
+                            var evt = e || window.event;
+                            var el = evt.target || evt.srcElement;
+                            if (el.nodeName == 'TD' && el.getAttribute('class') == 'see_details') {
+                                var nextRow = el.parentElement.nextElementSibling;
+                                if (!nextRow.style.display || nextRow.style.display == 'none')
+                                    nextRow.style.display = 'table-row';
+                                else
+                                    nextRow.style.display = 'none';
+                            }
                         }
-                    };</script>";
+
+                        document.getElementById('request_times').onclick = showDetailsClick;
+                        document.getElementById('application_errors').onclick = showDetailsClick;
+                        document.getElementById('server_errors').onclick = showDetailsClick;
+                    </script>";
         }
 
         private string Body()
@@ -68,10 +73,25 @@ namespace Fos.Logging
             foreach (var error in Logger.GetAllApplicationErrors())
             {
                 string row_class = (i % 2 == 0) ? "even_row" : "odd_row";
-                builder.AppendFormat("<tr class=\"{0}\"><td>{1}</td><td>{2}</td><td>{3}</td><td class=\"see_details\">details</td></tr>\n", row_class, HtmlEncode(error.RelativePath), HtmlEncode(error.HttpMethod), error.Error.Message);
+                builder.AppendFormat("<tr class=\"{0}\"><td>{1}</td><td>{2}</td><td>{3}</td><td class=\"see_details\">details</td></tr>\n", row_class, HtmlEncode(error.RelativePath), HtmlEncode(error.HttpMethod), HtmlEncode(error.Error.Message));
                 
                 // Now the line with more data
                 builder.AppendFormat("<tr class=\"row_data\"><td colspan=\"4\"><div style=\"padding-left: 10px;\">{0}</div></td></tr>\n", error.Error.ToString());
+                
+                i++;
+            }
+            builder.Append("</table>\n");
+
+            builder.Append("<h2>Server Errors</h2>");
+            builder.AppendLine("<table id=\"server_errors\"><tr><th>Type</th><th></th></tr>");
+            i = 0;
+            foreach (var error in Logger.GetAllServerErrors())
+            {
+                string row_class = (i % 2 == 0) ? "even_row" : "odd_row";
+                builder.AppendFormat("<tr class=\"{0}\"><td>{1}</td><td class=\"see_details\">details</td></tr>\n", row_class, HtmlEncode(error.GetType().ToString()));
+                
+                // Now the line with more data
+                builder.AppendFormat("<tr class=\"row_data\"><td colspan=\"4\"><div style=\"padding-left: 10px;\">{0}</div></td></tr>\n", HtmlEncode(error.ToString()));
                 
                 i++;
             }
@@ -95,8 +115,10 @@ namespace Fos.Logging
                     writer.Write("<html><head><title>Access Statistics</title>");
                     writer.Write(Head());
                     writer.Write("</head><body>");
+                    //writer.Flush();
 
                     writer.Write(Body());
+                    //writer.Flush();
 
                     writer.Write(EndOfBody());
                     writer.Write("</body></html>");

@@ -36,11 +36,14 @@ namespace Fos.Owin
 			return parametersDictionary.TryGetValue(key, out value);
 		}
 
-		public object this [string key] {
-			get {
+		public object this[string key]
+        {
+			get
+            {
 				return parametersDictionary[key];
 			}
-			set {
+			set
+            {
 				parametersDictionary[key] = value;
 			}
 		}

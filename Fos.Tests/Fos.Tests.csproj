@@ -52,7 +52,8 @@
     <Compile Include="SocketTests.cs" />
     <Compile Include="Logger\OneRequestTestLogger.cs" />
     <Compile Include="ResponseAndRequestHeaders.cs" />
-    <Compile Include="StdoutStream.cs" />
+    <Compile Include="Streams\StdoutStream.cs" />
+    <Compile Include="Streams\HeaderWriter.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
@@ -72,5 +73,6 @@
     <Folder Include="Middleware\" />
     <Folder Include="Browser\" />
     <Folder Include="Logger\" />
+    <Folder Include="Streams\" />
   </ItemGroup>
 </Project>

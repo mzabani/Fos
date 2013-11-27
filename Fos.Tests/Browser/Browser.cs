@@ -19,7 +19,7 @@ namespace Fos.Tests
 		private Socket SocketToUse;
 
         protected FastCgiStream ResponseStream;
-        protected SocketRequest Request;
+        protected ApplicationSocketRequest Request;
         protected ushort RequestId
         {
             get
@@ -34,7 +34,7 @@ namespace Fos.Tests
             var beginRequestRecord = new BeginRequestRecord(requestId);
             beginRequestRecord.ApplicationMustCloseConnection = true;
             beginRequestRecord.Role = Role.Responder;
-            Request = new SocketRequest(sock, beginRequestRecord, true);
+            Request = new ApplicationSocketRequest(sock, beginRequestRecord);
             Request.Send(beginRequestRecord);
         }
 

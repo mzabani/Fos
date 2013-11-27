@@ -126,7 +126,7 @@ namespace Fos
 				//TODO: The task may have failed or something else happened, verify
                 // Remember that connections closed by the other side abruptly have already
                 // been closed by the listener loop, so we shouldn't call Request.CloseSocket() here again
-				if (t.Result)
+				if (req.ApplicationMustCloseConnection)
                 {
                     req.Dispose();
                 }

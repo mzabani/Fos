@@ -46,7 +46,6 @@
     <Compile Include="CustomPages\EmptyResponsePage.cs" />
     <Compile Include="CustomPages\ApplicationErrorPage.cs" />
     <Compile Include="CustomPages\ICustomPage.cs" />
-    <Compile Include="Listener\ByteReaderAndRequest.cs" />
     <Compile Include="Listener\SocketListener.cs" />
     <Compile Include="Listener\FosRequest.cs" />
     <Compile Include="Logging\IServerLogger.cs" />
@@ -60,7 +59,10 @@
     <Compile Include="Owin\FosAppBuilder.cs" />
     <Compile Include="Middleware\FosOwinRoot.cs" />
     <Compile Include="SocketHelper.cs" />
-    <Compile Include="Listener\FosStdoutStream.cs" />
+    <Compile Include="Streams\FosStdoutStream.cs" />
+    <Compile Include="Listener\RecordFactoryAndRequest.cs" />
+    <Compile Include="Streams\HeaderWriter.cs" />
+    <Compile Include="Streams\NonEndingStdoutSocketStream.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
@@ -69,6 +71,7 @@
     <Folder Include="Logging\" />
     <Folder Include="CustomPages\" />
     <Folder Include="Logging\StatsLogging\" />
+    <Folder Include="Streams\" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

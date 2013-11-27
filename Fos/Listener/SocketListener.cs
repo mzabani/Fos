@@ -40,9 +40,9 @@ namespace Fos.Listener
 		public bool IsRunning { get; private set; }
 
 		/// <summary>
-		/// Requests indexed by their sockets.
+		/// Requests indexed by their sockets. There is no support for multiplexing.
 		/// </summary>
-		private ConcurrentDictionary<Socket, ByteReaderAndRequest> OpenSockets = new ConcurrentDictionary<Socket, ByteReaderAndRequest>();
+		private ConcurrentDictionary<Socket, RecordFactoryAndRequest> OpenSockets = new ConcurrentDictionary<Socket, RecordFactoryAndRequest>();
 
 		#region Events to receive records
 		/// <summary>
@@ -68,7 +68,7 @@ namespace Fos.Listener
 		/// </summary>
 		private void OnAbruptSocketClose(Socket sock, FosRequest fosRequest)
 		{
-			ByteReaderAndRequest trash;
+			RecordFactoryAndRequest trash;
 			OpenSockets.TryRemove(sock, out trash);
             fosRequest.Dispose();
 
@@ -84,17 +84,17 @@ namespace Fos.Listener
 		/// <summary>
 		/// Closes and disposes of a Request and its Socket while also removing it from the internal collection of open sockets.
 		/// </summary>
-		private void OnNormalSocketClose(SocketRequest req, FosRequest fosRequest)
+		private void OnNormalSocketClose(Socket sock, FosRequest fosRequest)
 		{
 			if (fosRequest == null)
 				throw new ArgumentNullException("fosRequest");
 		    
-			ByteReaderAndRequest trash;
-			OpenSockets.TryRemove(fosRequest.Socket, out trash);
+			RecordFactoryAndRequest trash;
+			OpenSockets.TryRemove(sock, out trash);
 			
 			if (Logger != null)
 			{
-				Logger.LogConnectionEndedNormally(fosRequest.Socket, new RequestInfo(fosRequest));
+				Logger.LogConnectionEndedNormally(sock, new RequestInfo(fosRequest));
 			}
 		}
 
@@ -126,16 +126,16 @@ namespace Fos.Listener
 						}
 
 						// Get some data on the socket
-                        ByteReaderAndRequest brr;
+                        RecordFactoryAndRequest brr;
                         if (!OpenSockets.TryGetValue(sock, out brr))
                         {
                             // On socket shutdown we may find a socket returned by Select that has already been removed
                             // from OpenSockets from a normal connection closing
                             continue;
                         }
-						//var fcgiRequest = brr.FCgiRequest;
+						
 						var fosRequest = brr.FosRequest;
-						var byteReader = brr.ByteReader;
+						var recFactory = brr.RecordFactory;
 
                         // Read data. The socket could have been disposed here.
                         // We need to remove it from our internal bookkeeping if that's the case.
@@ -146,7 +146,9 @@ namespace Fos.Listener
                         }
                         catch (ObjectDisposedException)
                         {
-                            OnAbruptSocketClose(sock, fosRequest);
+                            // This can happen if the application closed the socket but this loop
+                            // still had time to find the request in OpenSockets before it got removed.
+                            // Just give it more time.
                             continue;
                         }
                         catch (SocketException e)
@@ -156,12 +158,23 @@ namespace Fos.Listener
                                 OnAbruptSocketClose(sock, fosRequest);
                                 continue;
                             }
+                            else if (e.SocketErrorCode == SocketError.Shutdown)
+                            {
+                                // Similar to the ObjectDisposedException above, but we tried to call Receive
+                                // after the socket had been closed but still not marked as disposed (this should be rare)
+                                continue;
+                            }
                             else
                                 throw;
                         }
+
                         if (bytesRead == 0)
                         {
-                            OnAbruptSocketClose(sock, fosRequest);
+                            // This could indicate both a socket closed prematurely or
+                            // still the fact that the application closed the socket correctly and we received a bogus
+                            // amount of bytes read (it seems to be possible, at least with Mono). So:
+                            // If it was closed by the application it will be removed from OpenSockets
+                            // If it was closed prematurely by the webserver it will throw an error next time
                             continue;
                         }
 
@@ -170,7 +183,7 @@ namespace Fos.Listener
 						try
 						{
 							bool abortRequest = false;
-							foreach (var builtRecord in byteReader.Read(buffer, 0, bytesRead))
+							foreach (var builtRecord in recFactory.Read(buffer, 0, bytesRead))
 							{
 								if (abortRequest)
 								{
@@ -181,18 +194,15 @@ namespace Fos.Listener
 								switch (builtRecord.RecordType)
 								{
 									case RecordType.FCGIBeginRequest:
-										// We need this record to create our special FosRequest!
+										// We need this record to set precious request info
 										var beginRec = (BeginRequestRecord) builtRecord;
-//										fosRequest = new FosRequest(fcgiRequest.Socket, beginRec, Logger);
-//										brr.FosRequest = fosRequest;
-										fosRequest.SetBeginRequest(beginRec);
+										fosRequest.AddReceivedRecord(beginRec);
 										
 										// Also, this means termination now has request data
-										fosRequest.OnSocketClose += () => OnNormalSocketClose(null, fosRequest);
+										fosRequest.OnSocketClose += () => OnNormalSocketClose(sock, fosRequest);
 										
 										// Calls whoever is interested in knowing of this record!
 										OnReceiveBeginRequestRecord(fosRequest, beginRec);
-										
 										break;
 									
 									case RecordType.FCGIParams:
@@ -263,7 +273,7 @@ namespace Fos.Listener
 				newConnection = listenSocket.Accept();
 				//var request = new SocketRequest(newConnection, false);
 				
-				OpenSockets[newConnection] = new ByteReaderAndRequest(new RecordFactory(), newConnection, Logger);
+				OpenSockets[newConnection] = new RecordFactoryAndRequest(new RecordFactory(), newConnection, Logger);
 				if (Logger != null)
 					Logger.LogConnectionReceived(newConnection);
 			}
@@ -307,7 +317,8 @@ namespace Fos.Listener
 		/// <summary>
 		/// Start this FastCgi application. Set <paramref name="background"/> to true to start this without blocking.
 		/// </summary>
-		public void Start(bool background) {
+		public void Start(bool background)
+        {
 			if (!SomeListenSocketHasBeenBound)
 				throw new InvalidOperationException("You have to bind to some address or unix socket file first");
 
@@ -328,7 +339,7 @@ namespace Fos.Listener
                 Task.Factory.StartNew(Work);
             else
 			    Work();
-     		}
+ 		}
 
 		/// <summary>
 		/// Closes the listen socket and all active connections without a proper goodbye.

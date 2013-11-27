@@ -11,27 +11,9 @@ using System.Net.Sockets;
 
 namespace Fos.Listener
 {
-	/*enum ConnectionStatus {
-		BeginRequestReceived,
-		ParamsReceived,
-		EmptyStdinReceived,
-		EndRequestSent
-	}*/
-
-	internal class FosRequest : SocketRequest
+	internal class FosRequest : ApplicationSocketRequest
 	{
-		//public SocketRequest Request { get; private set; }
-//		public ushort RequestId
-//		{
-//			get
-//			{
-//				return Request.RequestId;
-//			}
-//		}
-//		public bool ApplicationMustCloseConnection { get; private set; }
-		//public ConnectionStatus Status { get; private set; }
-		
-        private FosStdoutStream stdout;
+        private Fos.Streams.FosStdoutStream stdout;
         public override FastCgiStream Stdout
         {
             get
@@ -65,43 +47,27 @@ namespace Fos.Listener
 		/// and the response headers.
 		/// </summary>
 		private void SendHeaders()
-		{
+ 		{
 			var headers = (IDictionary<string, string[]>)OwinContext["owin.ResponseHeaders"];
 			
-			//TODO: Can headers length exceed the 65535 content limit of a fastcgi record?
-			//WARNING: We may at this point have all the response written.. it would be nice to
-			// send more than just the headers here, but everything we have written up to this point in a record
-			var headersRecord = new StdoutRecord(RequestId);
-			
-			using (var writer = new StreamWriter(headersRecord.Contents, System.Text.Encoding.ASCII))
-			{
-				// Response status code with special CGI header "Status"
-				writer.Write("Status: {0}\r\n", OwinContext.ResponseStatusCodeAndReason);
+			using (var headerStream = new Fos.Streams.NonEndingStdoutSocketStream(Socket))
+            {
+                headerStream.RequestId = RequestId;
 
-				foreach (var header in headers)
-				{
-					writer.Write(header.Key);
-					writer.Write(": ");
-					
-					for (int i = 0; i < header.Value.Length; ++i)
-					{
-						string headerValuePart = header.Value[i];
-						
-						writer.Write(headerValuePart);
-						
-						// If it is not the last, add a comma
-						if (i < header.Value.Length - 1)
-							writer.Write(", ");
-					}
-					
-					writer.Write("\r\n");
-				}
-				
-				// There should be a newline after the last header. Add a second one before the body
-				writer.Write("\r\n");
-			}
-			
-			SendRecord(headersRecord);
+                using (var writer = new Fos.Streams.HeaderWriter(headerStream))
+                {
+                    // Response status code with special CGI header "Status"
+                    writer.Write("Status", OwinContext.ResponseStatusCodeAndReason);
+
+                    foreach (var header in headers)
+                    {
+                        writer.Write(header.Key, header.Value);
+                    }
+
+                    // That last newline
+                    writer.WriteLine();
+                }
+            }
 		}
 
 		private void SendErrorPage(Exception applicationEx)
@@ -134,39 +100,6 @@ namespace Fos.Listener
             Stdout.Flush();
 		}
 
-		private void SendEndRequest()
-		{
-			// End request and connection
-			var endRequestRec = new EndRequestRecord(RequestId);
-			SendRecord(endRequestRec);
-		}
-
-        /*
-		/// <summary>
-		/// Sends a Stdout Record with its contents set to <paramref name="contents"/>. The stream passed is disposed
-		/// after the record is sent.
-		/// </summary>
-		/// <param name="contents">A stream with the record's contents. If null, an empty record is sent.</param> 
-		private void SendStdoutRecord(RecordContentsStream contents)
-		{
-			if (contents == null)
-			{
-				using (var stdoutRec = new StdoutRecord(RequestId))
-				{
-					SendRecord(stdoutRec);
-				}
-			}
-			else
-			{
-				using (var stdoutRec = new StdoutRecord(RequestId))
-				{
-					contents.Seek(0, SeekOrigin.Begin);
-					stdoutRec.Contents = contents;
-					SendRecord(stdoutRec);
-				}
-			}
-		}*/
-
 		private void TestRecord(RecordBase rec)
 		{
 			if (rec == null)
@@ -189,7 +122,7 @@ namespace Fos.Listener
 		/// The task's result indicates if the connection needs to be closed from the application's side.
 		/// </summary>
 		/// <remarks>This method can return null if there are more Stdin records yet to be received. In fact, the request is only passed to the Owin pipeline after all stdin records have been received.</remarks>
-		public Task<bool> ReceiveStdin(StdinRecord rec)
+		public Task ReceiveStdin(StdinRecord rec)
 		{
 			TestRecord(rec);
 
@@ -201,7 +134,10 @@ namespace Fos.Listener
 				return null;
 
 			// Sign up for the first write, because we need to send the headers when that happens (Owin spec)
+            // Also sign up to flush buffers for the application if we can
 			stdout.OnFirstWrite += SendHeaders;
+            if (FlushPeriodically)
+                stdout.OnStreamFill += () => stdout.Flush();
 
 			// Now pass it to the Owin pipeline
 			Task applicationResponse;
@@ -218,14 +154,14 @@ namespace Fos.Listener
 				SendErrorPage(e);
 
 				// End the FastCgi connection
-				SendEndRequest();
+                SendEndRequest(0, ProtocolStatus.RequestComplete);
 
 				// Return a task that indicates completion..
-				return Task.Factory.StartNew<bool>(() => ApplicationMustCloseConnection);
+                return Task.Factory.StartNew(() => {});
 			}
 
 			// Now set the actions to do when the response is ready
-			return applicationResponse.ContinueWith<bool>(applicationTask =>
+			return applicationResponse.ContinueWith(applicationTask =>
             {
 				if (applicationTask.IsFaulted)
 				{
@@ -246,41 +182,32 @@ namespace Fos.Listener
 				// Flush and end the stdout stream
                 Stdout.Dispose();
 
-				SendEndRequest();
-
-				return ApplicationMustCloseConnection;
+                // Signal error state -1
+                SendEndRequest(-1, ProtocolStatus.RequestComplete);
 			});
 		}
 
-		/// <summary>
-		/// Use this method to send records internally, because it maintains state.
-		/// </summary>
-		/// <param name="rec">Rec.</param>
-		private void SendRecord(RecordBase rec)
+		public override bool Send(RecordBase rec)
 		{
-//			if (rec.RecordType == RecordType.FCGIEndRequest)
-//				Status = ConnectionStatus.EndRequestSent;
-
-			if (Send(rec) == false)
+			if (base.Send(rec) == false)
 			{
 				CancellationSource.Cancel();
+                return false;
 			}
+            return true;
 		}
 
 		public FosRequest(Socket sock, Fos.Logging.IServerLogger logger)
-            : base(sock, false)
+            : base(sock)
 		{
 			Logger = logger;
             CancellationSource = new CancellationTokenSource();
             OwinContext = new OwinContext("1.0", CancellationSource.Token);
 
             // Streams
-            stdout = new FosStdoutStream(sock);
+            stdout = new Fos.Streams.FosStdoutStream(sock);
             OwinContext.ResponseBody = Stdout;
             OwinContext.RequestBody = Stdin;
-			//Status = ConnectionStatus.BeginRequestReceived;
-			//Request = req;
-			//ApplicationMustCloseConnection = beginRequestRecord.ApplicationMustCloseConnection;
 		}
 	}
 }

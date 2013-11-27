@@ -7,6 +7,15 @@ namespace Fos.Tests
 	[TestFixture]
 	public class Startup
 	{
+        [Test]
+        public void CloseAndFlush()
+        {
+            var memStream = new System.IO.MemoryStream();
+
+            memStream.Close();
+            memStream.Flush();
+        }
+
 		[Test]
 		public void StartAndDispose()
 		{

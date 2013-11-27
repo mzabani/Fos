@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using NUnit.Framework;
 using Fos;
-using Fos.Listener;
+using Fos.Streams;
 using System.IO;
 
 namespace Fos.Tests
@@ -26,9 +26,7 @@ namespace Fos.Tests
                             numFirstWrites++; };
                         
                         int numStreamFills = 0;
-                        Stream lastFilledStream = null;
-                        s.OnStreamFill += (filledStream) => {
-                            lastFilledStream = filledStream;
+                        s.OnStreamFill += () => {
                             numStreamFills++;
                         };
                 
@@ -43,7 +41,6 @@ namespace Fos.Tests
                         int numFilledStreams = 5;
                         int chunkSize = 65535 * numFilledStreams + 1;
                         byte[] hugeChunk = new byte[chunkSize];
-                        Assert.IsNull(lastFilledStream);
                         Assert.AreEqual(0, numStreamFills);
                         s.Write(hugeChunk, 0, chunkSize);
                         Assert.AreEqual(numFilledStreams, numStreamFills);
