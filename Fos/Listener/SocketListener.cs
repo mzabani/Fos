@@ -11,19 +11,19 @@ using System.Threading.Tasks;
 
 namespace Fos.Listener
 {
-	internal delegate void ReceiveStdinRecord(FosRequest req, StdinRecord record);
-	internal delegate void ReceiveStdoutRecord(FosRequest req, StdoutRecord record);
-	internal delegate void ReceiveStderrRecord(FosRequest req, StderrRecord record);
-	internal delegate void ReceiveBeginRequestRecord(FosRequest req, BeginRequestRecord record);
-	internal delegate void ReceiveEndRequestRecord(FosRequest req, EndRequestRecord record);
-	internal delegate void ReceiveParamsRecord(FosRequest req, ParamsRecord record);
+//	internal delegate void ReceiveStdinRecord(FosRequest req, StdinRecord record);
+//	internal delegate void ReceiveStdoutRecord(FosRequest req, StdoutRecord record);
+//	internal delegate void ReceiveStderrRecord(FosRequest req, StderrRecord record);
+//	internal delegate void ReceiveBeginRequestRecord(FosRequest req, BeginRequestRecord record);
+//	internal delegate void ReceiveEndRequestRecord(FosRequest req, EndRequestRecord record);
+//	internal delegate void ReceiveParamsRecord(FosRequest req, ParamsRecord record);
 
 	/// <summary>
 	/// This class will provide you a listener application. It will listen to new connections and handle data while
 	/// providing ways for you to know what records different FastCgi connections are receiving. It features a highly asynchronous
 	/// main loop to make things run fast!
 	/// </summary>
-	internal class SocketListener : IDisposable
+	public abstract class SocketListener : IDisposable
 	{
 		private const int listenBacklog = 500;
 		private Socket tcpListenSocket;
@@ -42,42 +42,39 @@ namespace Fos.Listener
 		/// <summary>
 		/// Requests indexed by their sockets. There is no support for multiplexing.
 		/// </summary>
-		private ConcurrentDictionary<Socket, RecordFactoryAndRequest> OpenSockets = new ConcurrentDictionary<Socket, RecordFactoryAndRequest>();
+		private ConcurrentDictionary<Socket, FosRequest> OpenSockets = new ConcurrentDictionary<Socket, FosRequest>();
 
-		#region Events to receive records
-		/// <summary>
-		/// Upon receiving a record with this event, do not run any blocking code, or the application's main loop will block as well.
-		/// </summary>
-		public event ReceiveBeginRequestRecord OnReceiveBeginRequestRecord = delegate {};
-		/// <summary>
-		/// Upon receiving a record with this event, do not run any blocking code, or the application's main loop will block as well.
-		/// </summary>
-		public event ReceiveParamsRecord OnReceiveParamsRecord = delegate {};
-		/// <summary>
-		/// Upon receiving a record with this event, do not run any blocking code, or the application's main loop will block as well.
-		/// </summary>
-		public event ReceiveStdinRecord OnReceiveStdinRecord = delegate {};
-		/// <summary>
-		/// Upon receiving a record with this event, do not run any blocking code, or the application's main loop will block as well.
-		/// </summary>
-		public event ReceiveStdoutRecord OnReceiveStdoutRecord = delegate {};
-		#endregion
+//		#region Events to receive records
+//		/// <summary>
+//		/// Upon receiving a record with this event, do not run any blocking code, or the application's main loop will block as well.
+//		/// </summary>
+//		public event ReceiveBeginRequestRecord OnReceiveBeginRequestRecord = delegate {};
+//		/// <summary>
+//		/// Upon receiving a record with this event, do not run any blocking code, or the application's main loop will block as well.
+//		/// </summary>
+//		public event ReceiveParamsRecord OnReceiveParamsRecord = delegate {};
+//		/// <summary>
+//		/// Upon receiving a record with this event, do not run any blocking code, or the application's main loop will block as well.
+//		/// </summary>
+//		public event ReceiveStdinRecord OnReceiveStdinRecord = delegate {};
+//		/// <summary>
+//		/// Upon receiving a record with this event, do not run any blocking code, or the application's main loop will block as well.
+//		/// </summary>
+//		public event ReceiveStdoutRecord OnReceiveStdoutRecord = delegate {};
+//		#endregion
 
 		/// <summary>
 		/// Closes and disposes of a Request and its Socket while also removing it from the internal collection of open sockets.
 		/// </summary>
 		private void OnAbruptSocketClose(Socket sock, FosRequest fosRequest)
 		{
-			RecordFactoryAndRequest trash;
+			FosRequest trash;
 			OpenSockets.TryRemove(sock, out trash);
             fosRequest.Dispose();
 
 			if (Logger != null)
 			{
-				if (fosRequest == null)
-					Logger.LogConnectionClosedAbruptly(sock, null);
-				else
-					Logger.LogConnectionClosedAbruptly(sock, new RequestInfo(fosRequest));
+				Logger.LogConnectionClosedAbruptly(sock, new RequestInfo(fosRequest));
 			}
 		}
 		
@@ -89,14 +86,16 @@ namespace Fos.Listener
 			if (fosRequest == null)
 				throw new ArgumentNullException("fosRequest");
 		    
-			RecordFactoryAndRequest trash;
-			OpenSockets.TryRemove(sock, out trash);
-			
-			if (Logger != null)
-			{
-				Logger.LogConnectionEndedNormally(sock, new RequestInfo(fosRequest));
-			}
+            //TODO: We should make sure that this method never gets called if OnAbruptSocketClose was called.
+            // This is just a staple solution, it is subject to race conditions
+            FosRequest trash;
+            if (!OpenSockets.TryRemove(sock, out trash) && Logger != null)
+            {
+                Logger.LogConnectionEndedNormally(sock, new RequestInfo(fosRequest));
+            }
 		}
+
+        internal abstract void OnRecordBuilt(FosRequest req, RecordBase rec);
 
 		private void Work()
 		{
@@ -126,16 +125,13 @@ namespace Fos.Listener
 						}
 
 						// Get some data on the socket
-                        RecordFactoryAndRequest brr;
-                        if (!OpenSockets.TryGetValue(sock, out brr))
+                        FosRequest fosRequest;
+                        if (!OpenSockets.TryGetValue(sock, out fosRequest))
                         {
                             // On socket shutdown we may find a socket returned by Select that has already been removed
                             // from OpenSockets from a normal connection closing
                             continue;
                         }
-						
-						var fosRequest = brr.FosRequest;
-						var recFactory = brr.RecordFactory;
 
                         // Read data. The socket could have been disposed here.
                         // We need to remove it from our internal bookkeeping if that's the case.
@@ -148,7 +144,7 @@ namespace Fos.Listener
                         {
                             // This can happen if the application closed the socket but this loop
                             // still had time to find the request in OpenSockets before it got removed.
-                            // Just give it more time.
+                            //TODO: This can also mean the socket was closed by the other side, so we need a way to differentiate them
                             continue;
                         }
                         catch (SocketException e)
@@ -162,6 +158,7 @@ namespace Fos.Listener
                             {
                                 // Similar to the ObjectDisposedException above, but we tried to call Receive
                                 // after the socket had been closed but still not marked as disposed (this should be rare)
+                                // Give it another chance in the loop
                                 continue;
                             }
                             else
@@ -178,60 +175,20 @@ namespace Fos.Listener
                             continue;
                         }
 
-						// Feed the byte reader and signal our events
-						// Catch application errors to avoid service disruption
+						// Feed the request's record factory
+						// An exception thrown here means an implementer did not catch the application's exception. It is indeed a server error.
 						try
 						{
-							bool abortRequest = false;
-							foreach (var builtRecord in recFactory.Read(buffer, 0, bytesRead))
-							{
-								if (abortRequest)
-								{
-									fosRequest.CloseSocket();
-									break;
-								}
-
-								switch (builtRecord.RecordType)
-								{
-									case RecordType.FCGIBeginRequest:
-										// We need this record to set precious request info
-										var beginRec = (BeginRequestRecord) builtRecord;
-										fosRequest.AddReceivedRecord(beginRec);
-										
-										// Also, this means termination now has request data
-										fosRequest.OnSocketClose += () => OnNormalSocketClose(sock, fosRequest);
-										
-										// Calls whoever is interested in knowing of this record!
-										OnReceiveBeginRequestRecord(fosRequest, beginRec);
-										break;
-									
-									case RecordType.FCGIParams:
-										OnReceiveParamsRecord(fosRequest, (ParamsRecord)builtRecord);
-										break;
-									
-									case RecordType.FCGIStdin:
-										OnReceiveStdinRecord(fosRequest, (StdinRecord)builtRecord);
-										break;
-
-									case RecordType.FCGIStdout:
-										OnReceiveStdoutRecord(fosRequest, (StdoutRecord)builtRecord);
-										break;
-									
-									default:
-										if (Logger != null)
-											Logger.LogInvalidRecordReceived(builtRecord);
-										abortRequest = true;
-										break;
-								}
-							}
+                            foreach (var rec in fosRequest.FeedBytes(buffer, 0, bytesRead))
+                                OnRecordBuilt(fosRequest, rec);
 						}
 						catch (Exception e)
 						{
 							// Log and end request
 							if (Logger != null)
-								Logger.LogServerError(e, "An internal event handler did not handle an exception thrown by the application");
+								Logger.LogServerError(e, "The server did not handle an exception thrown by the application");
 
-							fosRequest.CloseSocket();
+                            fosRequest.Dispose();
 							continue;
 						}
 					}
@@ -273,7 +230,10 @@ namespace Fos.Listener
 				newConnection = listenSocket.Accept();
 				//var request = new SocketRequest(newConnection, false);
 				
-				OpenSockets[newConnection] = new RecordFactoryAndRequest(new RecordFactory(), newConnection, Logger);
+				//OpenSockets[newConnection] = new RecordFactoryAndRequest(new RecordFactory(), newConnection, Logger);
+                var request = new FosRequest(newConnection, Logger);
+                request.OnSocketClose += () => OnNormalSocketClose(newConnection, request);
+                OpenSockets[newConnection] = request;
 				if (Logger != null)
 					Logger.LogConnectionReceived(newConnection);
 			}
@@ -287,7 +247,7 @@ namespace Fos.Listener
 		/// <summary>
 		/// Set this to an <see cref="Fos.Logging.IServerLogger"/> to log server information.
 		/// </summary>
-		public void SetLogger(IServerLogger logger)
+		public virtual void SetLogger(IServerLogger logger)
 		{
 			if (logger == null)
 				throw new ArgumentNullException("logger");
@@ -317,7 +277,7 @@ namespace Fos.Listener
 		/// <summary>
 		/// Start this FastCgi application. Set <paramref name="background"/> to true to start this without blocking.
 		/// </summary>
-		public void Start(bool background)
+		public virtual void Start(bool background)
         {
 			if (!SomeListenSocketHasBeenBound)
 				throw new InvalidOperationException("You have to bind to some address or unix socket file first");
@@ -344,7 +304,7 @@ namespace Fos.Listener
 		/// <summary>
 		/// Closes the listen socket and all active connections without a proper goodbye.
 		/// </summary>
-		public void Stop()
+		public virtual void Stop()
 		{
 			IsRunning = false;
 
@@ -359,14 +319,14 @@ namespace Fos.Listener
 
 			foreach (var socketAndRequest in OpenSockets)
 			{
-				socketAndRequest.Value.FosRequest.CloseSocket();
+                socketAndRequest.Value.Dispose();
 			}
 		}
 
 		/// <summary>
 		/// Stops the server if it hasn't been stopped and disposes of resources, including a logger if one has been set.
 		/// </summary>
-		public void Dispose()
+		public virtual void Dispose()
 		{
 			Stop();
 

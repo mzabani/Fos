@@ -1,5 +1,6 @@
 using System;
 using Owin;
+using FastCgiNet;
 using System.Net.Sockets;
 using Fos;
 
@@ -24,6 +25,14 @@ namespace Fos.Tests
             var sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             sock.Connect(ListenOn, ListenPort);
             return sock;
+        }
+
+        protected WebServerSocketRequest ConnectAndGetWebServerRequest(ushort requestId)
+        {
+            var sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            sock.Connect(ListenOn, ListenPort);
+
+            return new WebServerSocketRequest(sock, requestId);
         }
 
         protected FosSelfHost GetApplicationErrorBoundServer()

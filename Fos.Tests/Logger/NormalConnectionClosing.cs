@@ -59,14 +59,16 @@ namespace Fos.Tests
                 server.Start(true);
                 
                 // A Request for the root dir /
-                var browser = new Browser(ListenOn, ListenPort);
-                browser.ExecuteRequest("http://localhost/", "GET");
+                using (var browser = new Browser(ListenOn, ListenPort))
+                {
+                    browser.ExecuteRequest("http://localhost/", "GET");
+                }
+
+                Assert.IsTrue(logger.ConnectionWasReceived);
+                Assert.IsTrue(logger.ConnectionClosedNormally);
+                Assert.That(logger.RequestInfo != null && logger.RequestInfo.RelativePath == "/" && logger.RequestInfo.ResponseStatusCode== 200);
+                Assert.IsFalse(logger.ConnectionClosedAbruptlyWithoutUrl);
             }
-            
-            Assert.IsTrue(logger.ConnectionWasReceived);
-            Assert.IsTrue(logger.ConnectionClosedNormally);
-            Assert.That(logger.RequestInfo != null && logger.RequestInfo.RelativePath == "/" && logger.RequestInfo.ResponseStatusCode== 200);
-            Assert.IsFalse(logger.ConnectionClosedAbruptlyWithoutAnyRequestInfo);
         }
     }
 }

@@ -12,10 +12,12 @@ namespace Fos.Tests
         public bool ServerWasStarted { get; private set; }
         public bool ServerWasStopped { get; private set; }
 
+        public bool ServerError { get; private set; }
+
         /// <summary>
-        /// True if the socket was closed before it sent any request info at all.
+        /// True if the socket was closed before it sent the requested url.
         /// </summary>
-        public bool ConnectionClosedAbruptlyWithoutAnyRequestInfo { get; private set; }
+        public bool ConnectionClosedAbruptlyWithoutUrl { get; private set; }
 
         /// <summary>
         /// If there was a socket error, this points to it.
@@ -54,8 +56,8 @@ namespace Fos.Tests
 
         public void LogConnectionClosedAbruptly(Socket s, RequestInfo req)
         {
-            if (req == null)
-                ConnectionClosedAbruptlyWithoutAnyRequestInfo = true;
+            if (string.IsNullOrEmpty(req.RelativePath))
+                ConnectionClosedAbruptlyWithoutUrl = true;
 
             RequestInfo = req;
         }
@@ -74,6 +76,7 @@ namespace Fos.Tests
 
         public void LogServerError(Exception e, string format, params object[] prms)
         {
+            ServerError = true;
         }
 
         public void LogSocketError(Socket s, Exception e, string format, params object[] prms)
@@ -87,6 +90,11 @@ namespace Fos.Tests
 
         public OneRequestTestLogger()
         {
+            ServerWasStarted = false;
+            ServerWasStopped = false;
+            ConnectionClosedNormally = false;
+            ConnectionClosedAbruptlyWithoutUrl = false;
+            ConnectionWasReceived = false;
         }
     }
 }

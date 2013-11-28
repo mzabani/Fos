@@ -43,6 +43,7 @@ namespace Fos.Tests
 				server.Bind(ListenOn, ListenPort);
 				server.Start(true);
 				
+                //System.Threading.Thread.Sleep(1000000);
 				// Make the request and expect the empty response page with 500 status code
 				var browser = new Browser(ListenOn, ListenPort);
 				var response = browser.ExecuteRequest("http://localhost/", "GET");

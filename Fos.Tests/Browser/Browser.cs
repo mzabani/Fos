@@ -12,14 +12,14 @@ namespace Fos.Tests
 	/// <summary>
 	/// This class helps you simulate a browser by creating the appropriate FastCgi records that a webserver would create.
 	/// </summary>
-	class Browser
+	class Browser : IDisposable
 	{
 		private System.Net.IPAddress FastCgiServer;
 		private int FastCgiServerPort;
-		private Socket SocketToUse;
+        private int MaxPollTime = 10000000;
 
         protected FastCgiStream ResponseStream;
-        protected ApplicationSocketRequest Request;
+        protected WebServerSocketRequest Request;
         protected ushort RequestId
         {
             get
@@ -28,76 +28,60 @@ namespace Fos.Tests
             }
         }
 
-        protected void SendBeginRequest(Socket sock)
-        {
-            ushort requestId = 1;
-            var beginRequestRecord = new BeginRequestRecord(requestId);
-            beginRequestRecord.ApplicationMustCloseConnection = true;
-            beginRequestRecord.Role = Role.Responder;
-            Request = new ApplicationSocketRequest(sock, beginRequestRecord);
-            Request.Send(beginRequestRecord);
-        }
-
         protected void SendParams(Uri uri, string method)
         {
-            using (var firstParams = new ParamsRecord(RequestId))
+            using (var nvpWriter = new NvpWriter(Request.Params))
             {
-                firstParams.SetParamsFromUri(uri, method);
-                Request.Send(firstParams);
+                nvpWriter.WriteParamsFromUri(uri, method);
             }
-            using (var emptyParams = new ParamsRecord(RequestId))
-            {
-                Request.Send(emptyParams);
-            }
+//            using (var firstParams = new ParamsRecord(RequestId))
+//            {
+//                firstParams.SetParamsFromUri(uri, method);
+//                Request.Send(firstParams);
+//            }
+//            using (var emptyParams = new ParamsRecord(RequestId))
+//            {
+//                Request.Send(emptyParams);
+//            }
         }
 
 		public virtual BrowserResponse ExecuteRequest(string url, string method)
 		{
-			var uri = new Uri(url);
-			Socket sock = SocketToUse ?? new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+			Socket sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            sock.Connect(new IPEndPoint(FastCgiServer, FastCgiServerPort));
 
-            ResponseStream = new FastCgiNet.Streams.SocketStream(sock, RecordType.FCGIStdout, true);
+            // Our request
+            ushort requestId = 1;
+            Request = new WebServerSocketRequest(sock, requestId);
+            Request.SendBeginRequest(Role.Responder, true);
+            SendParams(new Uri(url), method);
+            Request.SendEmptyStdin();
 
-			sock.Connect(new IPEndPoint(FastCgiServer, FastCgiServerPort));
+			// Receive the data from the other side
+            if (!sock.Poll(MaxPollTime, SelectMode.SelectRead))
+                throw new Exception("Data took too long");
 
-			var reader = new RecordFactory();
-
-            // Begin request
-            SendBeginRequest(sock);
-
-			// Params and empty params
-            SendParams(uri, method);
-
-			// Empty Stdin for now.
-			using (var rec = new StdinRecord(RequestId))
-			{
-				Request.Send(rec);
-			}
-
-			// Build our records!
 			byte[] buf = new byte[4096];
 			int bytesRead;
+            bool endRequest = false;
 			while ((bytesRead = sock.Receive(buf)) > 0)
-			{
-				foreach (RecordBase rec in reader.Read(buf, 0, bytesRead))
-				{
-					if (rec.RecordType == RecordType.FCGIStdout)
-					{
-						var contents = ((StreamRecordBase)rec).Contents;
-						ResponseStream.AppendStream(contents);
-					}
-				}
-			}
+            {
+                endRequest = Request.FeedBytes(buf, 0, bytesRead).Any(x => x.RecordType == RecordType.FCGIEndRequest);
+            }
+            if (!endRequest)
+                throw new Exception("EndRequest was not received.");
 
-            sock.Dispose();
-
-			return new BrowserResponse(ResponseStream);
+			return new BrowserResponse(Request.Stdout);
 		}
 
-		public Browser(Socket notConnectedSocket)
-		{
-			SocketToUse = notConnectedSocket;
-		}
+        public void Dispose()
+        {
+            if (Request != null)
+                Request.Dispose();
+
+            if (ResponseStream != null)
+                ResponseStream.Dispose();
+        }
 
 		public Browser(System.Net.IPAddress fcgiServer, int port)
 		{

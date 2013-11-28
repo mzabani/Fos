@@ -21,9 +21,6 @@ namespace Fos.Logging
 		{
 			if (req == null)
 				throw new ArgumentNullException("req");
-				
-			if (req.OwinContext == null)
-				return;
 			
 			var ctx = req.OwinContext;
 			

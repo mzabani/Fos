@@ -200,18 +200,18 @@ namespace Fos.Owin
 				SetRequestHeader("Cookie", nameValuePair.Value);
 		}
 
-		/// <summary>
-		/// Sets Owin parameters according to the received FastCgi Params record <paramref name="rec"/>.
-		/// </summary>
-		internal void AddParamsRecord(ParamsRecord rec) {
-			if (rec == null)
-				throw new ArgumentNullException("rec");
-
-			foreach (var nameValuePair in rec.Parameters)
-			{
-				SetOwinParametersFromFastCgiNvp(nameValuePair);
-			}
-		}
+//		/// <summary>
+//		/// Sets Owin parameters according to the received FastCgi Params record <paramref name="rec"/>.
+//		/// </summary>
+//		internal void AddParamsRecord(ParamsRecord rec) {
+//			if (rec == null)
+//				throw new ArgumentNullException("rec");
+//
+//			foreach (var nameValuePair in rec.Parameters)
+//			{
+//				SetOwinParametersFromFastCgiNvp(nameValuePair);
+//			}
+//		}
 
         /// <summary>
         /// Sets Owin parameters according to the received FastCgi Params in <paramref name="stream"/>.

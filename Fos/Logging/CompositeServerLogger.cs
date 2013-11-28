@@ -71,12 +71,6 @@ namespace Fos.Logging
                 logger.ServerStart();
         }
 
-        public void LogInvalidRecordReceived(FastCgiNet.RecordBase invalidRecord)
-        {
-            foreach (var logger in Loggers)
-                logger.LogInvalidRecordReceived(invalidRecord);
-        }
-
         public CompositeServerLogger()
         {
             Loggers = new LinkedList<IServerLogger>();

@@ -15,27 +15,19 @@ namespace Fos
 	/// This is the class you need to use to host your web application. It will create a TCP Socket that receives FastCgi
 	/// connections from your web server, passing them to the Owin pipeline.
 	/// </summary>
-	public class FosSelfHost : IDisposable
+	public class FosSelfHost : SocketListener
 	{
-		private SocketListener FastCgiListener;
+		//private SocketListener FastCgiListener;
 		private FosAppBuilder AppBuilder;
-		private Func<IDictionary<string, object>, System.Threading.Tasks.Task> OwinPipelineEntry;
+		private OwinHandler OwinPipelineEntry;
 		private Action<IAppBuilder> ApplicationConfigure;
-		private IServerLogger Logger;
 		private CancellationTokenSource OnAppDisposal;
+        private IServerLogger UserSetLogger;
 
         /// <summary>
         /// Set this to enable a statistics logger alongside any logger the user sets.
         /// </summary>
         internal StatsLogger StatisticsLogger;
-
-        public bool IsRunning
-        {
-            get
-            {
-                return FastCgiListener.IsRunning;
-            }
-        }
 
         /// <summary>
         /// Some applications need to control when flushing the response to the visitor is done; if that is the case, set this to <c>false</c>.
@@ -46,23 +38,29 @@ namespace Fos
 
         private IServerLogger BuildLogger()
         {
-            if (Logger == null && StatisticsLogger == null)
+            if (UserSetLogger == null && StatisticsLogger == null)
                 return null;
 
             var logger = new CompositeServerLogger();
-            if (Logger != null)
-                logger.AddLogger(Logger);
+            if (UserSetLogger != null)
+                logger.AddLogger(UserSetLogger);
             if (StatisticsLogger != null)
                 logger.AddLogger(StatisticsLogger);
 
             return logger;
         }
 
+        internal override void OnRecordBuilt(FosRequest req, RecordBase rec)
+        {
+            req.ApplicationPipelineEntry = OwinPipelineEntry;
+            req.FlushPeriodically = FlushPeriodically;
+        }
+
 		/// <summary>
 		/// Starts this FastCgi server! This method only returns when the server is ready to accept connections.
 		/// </summary>
 		/// <param name="background">True to start the server without blocking, false to block.</param>
-		public void Start(bool background)
+		public override void Start(bool background)
 		{
 			AppBuilder = new FosAppBuilder(OnAppDisposal.Token);
 
@@ -73,89 +71,95 @@ namespace Fos
             // Sets the logger
             var logger = BuildLogger();
             if (logger != null)
-                FastCgiListener.SetLogger(logger);
+                base.SetLogger(logger);
 
-            // Signs up for important events, then starts the listener
-			FastCgiListener.OnReceiveBeginRequestRecord += OnReceiveBeginRequest;
-			FastCgiListener.OnReceiveParamsRecord += OnReceiveParams;
-			FastCgiListener.OnReceiveStdinRecord += OnReceiveStdin;
+//            // Signs up for important events, then starts the listener
+//			FastCgiListener.OnReceiveBeginRequestRecord += OnReceiveBeginRequest;
+//			FastCgiListener.OnReceiveParamsRecord += OnReceiveParams;
+//			FastCgiListener.OnReceiveStdinRecord += OnReceiveStdin;
 
-            FastCgiListener.Start(background);
+            base.Start(background);
 		}
 
 		/// <summary>
 		/// Notifies the application (in non-standard fashion) that the server is stopping and stops listening for connections, while
 		/// closing active connections abruptly.
 		/// </summary>
-		public void Stop()
+		public override void Stop()
 		{
 			// Tell the application the server is disposing
-			OnAppDisposal.Cancel();
+			//OnAppDisposal.Cancel();
 			OnAppDisposal.Dispose();
 
-			FastCgiListener.Stop();
+            base.Stop();
 		}
 
-		public void SetLogger(IServerLogger logger)
+		public override void SetLogger(IServerLogger logger)
 		{
             if (logger == null)
                 throw new ArgumentNullException("logger");
 
-			this.Logger = logger;
+            this.UserSetLogger = logger;
 		}
 
-		private void OnReceiveBeginRequest(FosRequest req, BeginRequestRecord rec)
-        {
-			req.ApplicationPipelineEntry = OwinPipelineEntry;
-            req.FlushPeriodically = FlushPeriodically;
-		}
+//        protected override void OnRecordBuild(RecordBase rec, FosRequest req)
+//        {
+//            if (rec.RecordType == RecordType.FCGIBeginRequest)
+//                OnReceiveStdin(req, rec);
+//        }
 
-		private void OnReceiveParams(FosRequest req, ParamsRecord rec)
-        {
-			req.ReceiveParams(rec);
-		}
+//
+//		private void OnReceiveBeginRequest(FosRequest req, BeginRequestRecord rec)
+//        {
+//			req.ApplicationPipelineEntry = OwinPipelineEntry;
+//            req.FlushPeriodically = FlushPeriodically;
+//		}
+//
+//		private void OnReceiveParams(FosRequest req, ParamsRecord rec)
+//        {
+//			req.ReceiveParams(rec);
+//		}
 
-		private void OnReceiveStdin(FosRequest req, StdinRecord rec)
-        {
-			var onCloseConnection = req.ReceiveStdin(rec);
-			if (onCloseConnection == null)
-				return;
+//		private void OnReceiveStdin(FosRequest req, StdinRecord rec)
+//        {
+//			var onCloseConnection = req.ReceiveStdin(rec);
+//			if (onCloseConnection == null)
+//				return;
+//
+//			onCloseConnection.ContinueWith(t =>
+//			{
+//				//TODO: The task may have failed or something else happened, verify
+//                // Remember that connections closed by the other side abruptly have already
+//                // been closed by the listener loop, so we shouldn't call Request.CloseSocket() here again
+//				if (req.ApplicationMustCloseConnection)
+//                {
+//                    req.Dispose();
+//                }
+//			});
+//		}
 
-			onCloseConnection.ContinueWith(t =>
-			{
-				//TODO: The task may have failed or something else happened, verify
-                // Remember that connections closed by the other side abruptly have already
-                // been closed by the listener loop, so we shouldn't call Request.CloseSocket() here again
-				if (req.ApplicationMustCloseConnection)
-                {
-                    req.Dispose();
-                }
-			});
-		}
+//		/// <summary>
+//		/// Binds the TCP listen socket to an address an a port.
+//		/// </summary>
+//		public void Bind(System.Net.IPAddress addr, int port)
+//		{
+//			FastCgiListener.Bind(addr, port);
+//		}
+//
+//#if __MonoCS__
+//		/// <summary>
+//		/// Defines the unix socket path to listen on.
+//		/// </summary>
+//		public void Bind(string socketPath)
+//		{
+//			FastCgiListener.Bind(socketPath);
+//		}
+//#endif
 
-		/// <summary>
-		/// Binds the TCP listen socket to an address an a port.
-		/// </summary>
-		public void Bind(System.Net.IPAddress addr, int port)
+		public override void Dispose()
 		{
-			FastCgiListener.Bind(addr, port);
-		}
-
-#if __MonoCS__
-		/// <summary>
-		/// Defines the unix socket path to listen on.
-		/// </summary>
-		public void Bind(string socketPath)
-		{
-			FastCgiListener.Bind(socketPath);
-		}
-#endif
-
-		public void Dispose()
-		{
-			Stop();
 			OnAppDisposal.Dispose();
-			FastCgiListener.Dispose();
+			base.Dispose();
 		}
 
 		/// <summary>
@@ -164,7 +168,7 @@ namespace Fos
 		public FosSelfHost(Action<IAppBuilder> configureMethod)
 		{
 			ApplicationConfigure = configureMethod;
-			FastCgiListener = new SocketListener();
+			//FastCgiListener = new SocketListener();
 			OnAppDisposal = new CancellationTokenSource();
 		}
 	}

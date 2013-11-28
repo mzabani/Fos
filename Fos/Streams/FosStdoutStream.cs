@@ -16,7 +16,8 @@ namespace Fos.Streams
     internal class FosStdoutStream : SocketStream
     {
         /// <summary>
-        /// This event is triggered on the very first write to this Stream.
+        /// This event is triggered on the very first write to this Stream. It is triggered before any data is sent through the socket, so that you
+        /// can send something yourself before that.
         /// </summary>
         public event StreamWriteEvent OnFirstWrite = delegate {};
         private bool FirstWrite;
@@ -75,12 +76,12 @@ namespace Fos.Streams
 
         public override void Write(byte[] buffer, int offset, int count)
         {
-            base.Write(buffer, offset, count);
             if (!FirstWrite)
             {
                 FirstWrite = true;
                 OnFirstWrite();
             }
+            base.Write(buffer, offset, count);
         }
 
         public FosStdoutStream(Socket sock)

@@ -24,20 +24,16 @@ namespace Fos.Logging
 		
 		/// <summary>
 		/// Some times the connection is closed abruptly. For those cases, this method is called to log this occurrence.
-		/// Do note that <paramref name="req"/> can be null if the connection was closed before the server received any request data. Beware that
-		/// sometimes <paramref name="req"/> is not null, yet its members can be null, depending on the amount of data the server received before 
+		/// Be aware that sometimes <paramref name="req"/>'s members can be null or in invalid state, depending on the amount of data the server received before 
 		/// the connection was closed by the other side.
 		/// </summary>
 		/// <param name="s">The socket that was closed abruptly.</param>
-		/// <param name="req">The request info we had obtained so far. You should null check this object and every member in it.</param>
+		/// <param name="req">The request info we had obtained so far. You should null check this object's members. The object itself will never be null.</param>
 		void LogConnectionClosedAbruptly(Socket s, RequestInfo req);
 		
 		void LogConnectionEndedNormally(Socket s, RequestInfo req);
 		void LogApplicationError(Exception e, RequestInfo req);
 		void LogServerError(Exception e, string format, params object[] prms);
 		void LogSocketError(Socket s, Exception e, string format, params object[] prms);
-		
-        //TODO: The method below forces Fos's users to reference FastCgiNet explicitly. This is not nice.
-        void LogInvalidRecordReceived(RecordBase invalidRecord);
 	}
 }

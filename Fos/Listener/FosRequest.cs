@@ -11,6 +11,8 @@ using System.Net.Sockets;
 
 namespace Fos.Listener
 {
+    internal delegate void SocketClosed();
+
 	internal class FosRequest : ApplicationSocketRequest
 	{
         private Fos.Streams.FosStdoutStream stdout;
@@ -100,39 +102,41 @@ namespace Fos.Listener
             Stdout.Flush();
 		}
 
-		private void TestRecord(RecordBase rec)
-		{
-			if (rec == null)
-				throw new ArgumentNullException("rec");
-			else if (rec.RequestId != RequestId)
-				throw new ArgumentException("Request id of received record is different than this request's RequestId");
-		}
+        protected override void AddReceivedRecord(RecordBase rec)
+        {
+            base.AddReceivedRecord(rec);
 
-		public void ReceiveParams(ParamsRecord rec)
-		{
-			TestRecord(rec);
+            switch (rec.RecordType)
+            {
+                case RecordType.FCGIParams:
+                    if (Params.IsComplete)
+                        OwinContext.AddParams(Params);
+                    break;
 
-            this.AddReceivedRecord(rec);
-            if (ParamsStream.IsComplete)
-			    OwinContext.AddParams(ParamsStream);
-		}
+                case RecordType.FCGIStdin:
+                    // Only respond if the last empty stdin was received
+                    if (!Stdin.IsComplete)
+                        break;
+
+                    var onApplicationDone = ProcessRequest();
+                    onApplicationDone.ContinueWith(t => {
+                        //TODO: The task may have failed or something else happened, verify
+                        if (ApplicationMustCloseConnection)
+                        {
+                            this.Dispose();
+                        }
+                    });
+                    break;
+            }
+        }
 
 		/// <summary>
 		/// Receives an Stdin record, passes it to the Owin Pipeline and returns a Task that when completed, indicates this FastCGI Request has been answered to and is ended.
 		/// The task's result indicates if the connection needs to be closed from the application's side.
 		/// </summary>
 		/// <remarks>This method can return null if there are more Stdin records yet to be received. In fact, the request is only passed to the Owin pipeline after all stdin records have been received.</remarks>
-		public Task ReceiveStdin(StdinRecord rec)
+		public Task ProcessRequest()
 		{
-			TestRecord(rec);
-
-            // Append the request body of this record to the entire request body
-            AddReceivedRecord(rec);
-
-			// Only respond if the last empty stdin was received
-			if (!Stdin.IsComplete)
-				return null;
-
 			// Sign up for the first write, because we need to send the headers when that happens (Owin spec)
             // Also sign up to flush buffers for the application if we can
 			stdout.OnFirstWrite += SendHeaders;
@@ -180,22 +184,55 @@ namespace Fos.Listener
 				}
 
 				// Flush and end the stdout stream
-                Stdout.Dispose();
+                stdout.Dispose();
 
                 // Signal error state -1
                 SendEndRequest(-1, ProtocolStatus.RequestComplete);
 			});
 		}
 
-		public override bool Send(RecordBase rec)
+		protected override void Send(RecordBase rec)
 		{
-			if (base.Send(rec) == false)
-			{
-				CancellationSource.Cancel();
-                return false;
-			}
-            return true;
+            try
+            {
+                base.Send(rec);
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+            catch (SocketException e)
+            {
+                if (!SocketHelper.IsConnectionAbortedByTheOtherSide(e))
+                    throw;
+                
+                CancellationSource.Cancel();
+            }
 		}
+
+        /// <summary>
+        /// Warns when the socket for this request was closed by our side because <see cref="CloseSocket()"/> was called.
+        /// </summary>
+        public event SocketClosed OnSocketClose = delegate {};
+
+        protected override void CloseSocket()
+        {
+            try
+            {
+                if (!CancellationSource.IsCancellationRequested)
+                    CancellationSource.Cancel();
+
+                base.CloseSocket();
+                OnSocketClose();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+            catch (SocketException e)
+            {
+                if (!SocketHelper.IsConnectionAbortedByTheOtherSide(e))
+                    throw;
+            }
+        }
 
 		public FosRequest(Socket sock, Fos.Logging.IServerLogger logger)
             : base(sock)
