@@ -49,7 +49,7 @@ namespace Fos.Tests
         }
 
         [Test]
-        public void CheckBasicData()
+        public void CheckBasicLoggingData()
         {
             var logger = new OneRequestTestLogger();
             
@@ -66,7 +66,7 @@ namespace Fos.Tests
 
                 Assert.IsTrue(logger.ConnectionWasReceived);
                 Assert.IsTrue(logger.ConnectionClosedNormally);
-                Assert.That(logger.RequestInfo != null && logger.RequestInfo.RelativePath == "/" && logger.RequestInfo.ResponseStatusCode== 200);
+                Assert.That(logger.RequestInfo.RelativePath == "/" && logger.RequestInfo.ResponseStatusCode == 200);
                 Assert.IsFalse(logger.ConnectionClosedAbruptlyWithoutUrl);
             }
         }

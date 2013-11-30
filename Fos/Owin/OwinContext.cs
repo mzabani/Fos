@@ -114,8 +114,8 @@ namespace Fos.Owin
 		}
 		#endregion
 
-		private HeaderDictionary requestHeaders;
-		private HeaderDictionary responseHeaders;
+        public HeaderDictionary RequestHeaders { get; private set; }
+        public HeaderDictionary ResponseHeaders { get; private set; }
 
 		public CancellationToken CancellationToken { get; private set; }
 
@@ -133,35 +133,36 @@ namespace Fos.Owin
 
 		public void SetRequestHeader(string headerName, string headerValue)
 		{
-			if (requestHeaders.ContainsKey(headerName))
-				requestHeaders[headerName][0] = headerValue;
+			if (RequestHeaders.ContainsKey(headerName))
+				RequestHeaders[headerName][0] = headerValue;
 			else
-				requestHeaders.Add(headerName, new string[1] { headerValue });
+				RequestHeaders.Add(headerName, new string[1] { headerValue });
 		}
 
 		public void SetResponseHeader(string headerName, string headerValue)
 		{
-			if (responseHeaders.ContainsKey(headerName))
-				responseHeaders[headerName][0] = headerValue;
+			if (ResponseHeaders.ContainsKey(headerName))
+				ResponseHeaders[headerName][0] = headerValue;
 			else
-				responseHeaders.Add(headerName, new string[1] { headerValue });
+				ResponseHeaders.Add(headerName, new string[1] { headerValue });
 		}
 
-		internal void SetOwinParametersFromFastCgiNvp(NameValuePair nameValuePair)
+        //private readonly static System.Text.RegularExpressions.Regex HttpHeaderRegex = new System.Text.RegularExpressions.Regex(@"HTTP_(([^ _])+(_?))+");
+		public void SetOwinParametersFromFastCgiNvp(NameValuePair nameValuePair)
 		{
 			if (nameValuePair.Name == "SERVER_PROTOCOL")
-				Set("owin.RequestProtocol", nameValuePair.Value);
-			else if (nameValuePair.Name == "REQUEST_METHOD")
-				Set("owin.RequestMethod", nameValuePair.Value.ToUpperInvariant());
-			else if (nameValuePair.Name == "QUERY_STRING")
-				Set("owin.RequestQueryString", nameValuePair.Value);
-			else if (nameValuePair.Name == "HTTPS" && nameValuePair.Value == "on")
-				Set("owin.RequestScheme", "https");
-			else if (nameValuePair.Name == "DOCUMENT_URI")
-			{
-				Set("owin.RequestPathBase", string.Empty);
-				Set("owin.RequestPath", nameValuePair.Value);
-			}
+                Set("owin.RequestProtocol", nameValuePair.Value);
+            else if (nameValuePair.Name == "REQUEST_METHOD")
+                Set("owin.RequestMethod", nameValuePair.Value.ToUpperInvariant());
+            else if (nameValuePair.Name == "QUERY_STRING")
+                Set("owin.RequestQueryString", nameValuePair.Value);
+            else if (nameValuePair.Name == "HTTPS" && nameValuePair.Value == "on")
+                Set("owin.RequestScheme", "https");
+            else if (nameValuePair.Name == "DOCUMENT_URI")
+            {
+                Set("owin.RequestPathBase", string.Empty);
+                Set("owin.RequestPath", nameValuePair.Value);
+            }
 			
 			// HTTP_* parameters (these represent the http request header), such as:
 			// HTTP_CONNECTION: keep-alive
@@ -170,53 +171,60 @@ namespace Fos.Owin
 			// HTTP_ACCEPT_ENCODING
 			// HTTP_ACCEPT_LANGUAGE
 			// HTTP_COOKIE
-			// many others.. see http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html and CGI Environment Variables
-			//TODO: Check if replacing _ by - and camel casing single words would do it for all headers
-			else if (nameValuePair.Name == "HTTP_HOST")
-				SetRequestHeader("Host", nameValuePair.Value);
-			else if (nameValuePair.Name == "HTTP_ACCEPT")
-				SetRequestHeader("Accept", nameValuePair.Value);
-			else if (nameValuePair.Name == "HTTP_ACCEPT_ENCODING")
-				SetRequestHeader("Accept-Encoding", nameValuePair.Value);
-			else if (nameValuePair.Name == "HTTP_ACCEPT_LANGUAGE")
-				SetRequestHeader("Accept-Language", nameValuePair.Value);
-			else if (nameValuePair.Name == "HTTP_CONNECTION")
-				SetRequestHeader("Connection", nameValuePair.Value);
-			else if (nameValuePair.Name == "HTTP_CONTENT_LENGTH")
-				SetRequestHeader("Content-Length", nameValuePair.Value);
-			else if (nameValuePair.Name == "HTTP_ORIGIN")
-				SetRequestHeader("Origin", nameValuePair.Value);
-			else if (nameValuePair.Name == "HTTP_X_REQUESTED_WITH")
-				SetRequestHeader("X-Requested-With", nameValuePair.Value);
-			else if (nameValuePair.Name == "HTTP_USER_AGENT")
-				SetRequestHeader("User-Agent", nameValuePair.Value);
-			else if (nameValuePair.Name == "HTTP_CONTENT_TYPE")
-				SetRequestHeader("Content-Type", nameValuePair.Value);
-			else if (nameValuePair.Name == "HTTP_REFERER")
-				SetRequestHeader("Referer", nameValuePair.Value);
-			else if (nameValuePair.Name == "HTTP_AUTHORIZATION")
-				SetRequestHeader("Authorization", nameValuePair.Value);
-			else if (nameValuePair.Name == "HTTP_COOKIE")
-				SetRequestHeader("Cookie", nameValuePair.Value);
+			// many others..
+            else if (nameValuePair.Name.StartsWith("HTTP_"))
+            {
+                //TODO: Avoid creating strings and create a decent algorithm for this conversion
+                // Replace _ by - and pascal case single words to create pretty http headers
+                string[] headerNameParts = nameValuePair.Name.Split('_');
+                var builder = new System.Text.StringBuilder(nameValuePair.NameLength - 5);
+
+                int i = 1;
+                foreach (string part in headerNameParts.Skip(1))
+                {
+                    builder.Append(part[0]);
+                    builder.Append(part.Substring(1, part.Length - 1).ToLowerInvariant());
+
+                    if (i < headerNameParts.Length - 1)
+                        builder.Append('-');
+
+                    ++i;
+                }
+
+                SetRequestHeader(builder.ToString(), nameValuePair.Value);
+            }
+
+//			else if (nameValuePair.Name == "HTTP_HOST")
+//				SetRequestHeader("Host", nameValuePair.Value);
+//			else if (nameValuePair.Name == "HTTP_ACCEPT")
+//				SetRequestHeader("Accept", nameValuePair.Value);
+//			else if (nameValuePair.Name == "HTTP_ACCEPT_ENCODING")
+//				SetRequestHeader("Accept-Encoding", nameValuePair.Value);
+//			else if (nameValuePair.Name == "HTTP_ACCEPT_LANGUAGE")
+//				SetRequestHeader("Accept-Language", nameValuePair.Value);
+//			else if (nameValuePair.Name == "HTTP_CONNECTION")
+//				SetRequestHeader("Connection", nameValuePair.Value);
+//			else if (nameValuePair.Name == "HTTP_CONTENT_LENGTH")
+//				SetRequestHeader("Content-Length", nameValuePair.Value);
+//			else if (nameValuePair.Name == "HTTP_ORIGIN")
+//				SetRequestHeader("Origin", nameValuePair.Value);
+//			else if (nameValuePair.Name == "HTTP_X_REQUESTED_WITH")
+//				SetRequestHeader("X-Requested-With", nameValuePair.Value);
+//			else if (nameValuePair.Name == "HTTP_USER_AGENT")
+//				SetRequestHeader("User-Agent", nameValuePair.Value);
+//			else if (nameValuePair.Name == "HTTP_CONTENT_TYPE")
+//				SetRequestHeader("Content-Type", nameValuePair.Value);
+//			else if (nameValuePair.Name == "HTTP_REFERER")
+//				SetRequestHeader("Referer", nameValuePair.Value);
+//			else if (nameValuePair.Name == "HTTP_AUTHORIZATION")
+//				SetRequestHeader("Authorization", nameValuePair.Value);
+//			else if (nameValuePair.Name == "HTTP_COOKIE")
+//				SetRequestHeader("Cookie", nameValuePair.Value);
 		}
-
-//		/// <summary>
-//		/// Sets Owin parameters according to the received FastCgi Params record <paramref name="rec"/>.
-//		/// </summary>
-//		internal void AddParamsRecord(ParamsRecord rec) {
-//			if (rec == null)
-//				throw new ArgumentNullException("rec");
-//
-//			foreach (var nameValuePair in rec.Parameters)
-//			{
-//				SetOwinParametersFromFastCgiNvp(nameValuePair);
-//			}
-//		}
-
         /// <summary>
         /// Sets Owin parameters according to the received FastCgi Params in <paramref name="stream"/>.
         /// </summary>
-        internal void AddParams(FastCgiStream stream) {
+        public void AddParams(FastCgiStream stream) {
             if (stream == null)
                 throw new ArgumentNullException("stream");
 
@@ -315,7 +323,7 @@ namespace Fos.Owin
         {
 			get
 			{
-				return this.ContainsKey("owin.ResponseStatusCode") || this.ContainsKey("owin.ResponseReasonPhrase") || responseHeaders.Any() || (this.ContainsKey("owin.ResponseBody") && ResponseBody.Length > 0);
+				return this.ContainsKey("owin.ResponseStatusCode") || this.ContainsKey("owin.ResponseReasonPhrase") || ResponseHeaders.Any() || (this.ContainsKey("owin.ResponseBody") && ResponseBody.Length > 0);
 			}
 		}
 
@@ -324,7 +332,7 @@ namespace Fos.Owin
 			get
 			{
                 string queryString = this.QueryString;
-				return Get<string>("owin.RequestScheme") + "://" + (string)requestHeaders["Host"][0]
+				return Get<string>("owin.RequestScheme") + "://" + (string)RequestHeaders["Host"][0]
 				+ this.RelativePath
 				+ (!string.IsNullOrEmpty(queryString) ? "?" + queryString : null);
 			}
@@ -398,10 +406,10 @@ namespace Fos.Owin
 				throw new ArgumentException("Owin Version must be equal to '1.0'");
 
 			parametersDictionary = new Dictionary<string, object>();
-            requestHeaders = new HeaderDictionary();
-            responseHeaders = new HeaderDictionary();
-			Set("owin.RequestHeaders", requestHeaders);
-			Set("owin.ResponseHeaders", responseHeaders);
+            RequestHeaders = new HeaderDictionary();
+            ResponseHeaders = new HeaderDictionary();
+			Set("owin.RequestHeaders", RequestHeaders);
+			Set("owin.ResponseHeaders", ResponseHeaders);
 
 			Set("owin.Version", owinVersion);
 

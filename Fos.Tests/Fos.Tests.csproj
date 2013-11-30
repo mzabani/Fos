@@ -44,7 +44,6 @@
     <Compile Include="Middleware\EmptyResponseApplication.cs" />
     <Compile Include="Middleware\ThrowsExceptionApplication.cs" />
     <Compile Include="Browser\Browser.cs" />
-    <Compile Include="OwinContext.cs" />
     <Compile Include="Browser\BrowserResponse.cs" />
     <Compile Include="CustomPagesTests.cs" />
     <Compile Include="Logger\AbruptConnectionClosing.cs" />
@@ -54,6 +53,7 @@
     <Compile Include="ResponseAndRequestHeaders.cs" />
     <Compile Include="Streams\StdoutStream.cs" />
     <Compile Include="Streams\HeaderWriter.cs" />
+    <Compile Include="OwinContextTests.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

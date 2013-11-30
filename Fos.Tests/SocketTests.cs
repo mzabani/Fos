@@ -1,6 +1,7 @@
 using System;
 using Owin;
 using FastCgiNet;
+using FastCgiNet.Requests;
 using System.Net.Sockets;
 using Fos;
 

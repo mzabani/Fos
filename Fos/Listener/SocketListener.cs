@@ -89,7 +89,7 @@ namespace Fos.Listener
             //TODO: We should make sure that this method never gets called if OnAbruptSocketClose was called.
             // This is just a staple solution, it is subject to race conditions
             FosRequest trash;
-            if (!OpenSockets.TryRemove(sock, out trash) && Logger != null)
+            if (OpenSockets.TryRemove(sock, out trash) && Logger != null)
             {
                 Logger.LogConnectionEndedNormally(sock, new RequestInfo(fosRequest));
             }

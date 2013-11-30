@@ -18,6 +18,21 @@ namespace Fos.Tests
 			TokenSource = new CancellationTokenSource();
 		}
 
+        [Test]
+        public void HttpRequestheaders()
+        {
+            var ctx = new OwinContext("1.0", TokenSource.Token);
+
+            NameValuePair host = new NameValuePair("HTTP_HOST", "localhost");
+            ctx.SetOwinParametersFromFastCgiNvp(host);
+
+            NameValuePair coolNewHeader = new NameValuePair("HTTP_COOL_NEW_HEADER", "anything");
+            ctx.SetOwinParametersFromFastCgiNvp(coolNewHeader);
+
+            Assert.AreEqual("localhost", ctx.RequestHeaders["Host"][0]);
+            Assert.AreEqual("anything", ctx.RequestHeaders["Cool-New-Header"][0]);
+        }
+
 		[Test]
 		public void UriCheck()
 		{

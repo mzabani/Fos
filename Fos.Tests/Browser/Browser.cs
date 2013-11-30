@@ -1,11 +1,12 @@
 using System;
-using FastCgiNet;
 using System.Collections.Generic;
 using System.Net;
 using System.Linq;
 using System.Net.Sockets;
 using System.IO;
+using FastCgiNet;
 using FastCgiNet.Streams;
+using FastCgiNet.Requests;
 
 namespace Fos.Tests
 {
@@ -34,15 +35,6 @@ namespace Fos.Tests
             {
                 nvpWriter.WriteParamsFromUri(uri, method);
             }
-//            using (var firstParams = new ParamsRecord(RequestId))
-//            {
-//                firstParams.SetParamsFromUri(uri, method);
-//                Request.Send(firstParams);
-//            }
-//            using (var emptyParams = new ParamsRecord(RequestId))
-//            {
-//                Request.Send(emptyParams);
-//            }
         }
 
 		public virtual BrowserResponse ExecuteRequest(string url, string method)

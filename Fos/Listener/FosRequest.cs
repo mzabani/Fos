@@ -13,7 +13,7 @@ namespace Fos.Listener
 {
     internal delegate void SocketClosed();
 
-	internal class FosRequest : ApplicationSocketRequest
+	internal class FosRequest : FastCgiNet.Requests.ApplicationSocketRequest
 	{
         private Fos.Streams.FosStdoutStream stdout;
         public override FastCgiStream Stdout
@@ -120,7 +120,7 @@ namespace Fos.Listener
 
                     var onApplicationDone = ProcessRequest();
                     onApplicationDone.ContinueWith(t => {
-                        //TODO: The task may have failed or something else happened, verify
+                        // This task _CANNOT_ fail
                         if (ApplicationMustCloseConnection)
                         {
                             this.Dispose();
@@ -157,8 +157,8 @@ namespace Fos.Listener
 				// Show the exception to the visitor
 				SendErrorPage(e);
 
-				// End the FastCgi connection
-                SendEndRequest(0, ProtocolStatus.RequestComplete);
+				// End the FastCgi connection with an error code
+                SendEndRequest(-1, ProtocolStatus.RequestComplete);
 
 				// Return a task that indicates completion..
                 return Task.Factory.StartNew(() => {});
@@ -182,9 +182,6 @@ namespace Fos.Listener
 					// If we are here, then no response was set by the application, i.e. not a single header or response body
 					SendEmptyResponsePage();
 				}
-
-				// Flush and end the stdout stream
-                stdout.Dispose();
 
                 // Signal error state -1
                 SendEndRequest(-1, ProtocolStatus.RequestComplete);
