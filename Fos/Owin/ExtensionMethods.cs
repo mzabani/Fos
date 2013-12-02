@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Owin;
 
@@ -31,6 +32,11 @@ namespace Fos.Owin
             fosBuilder.Use<Fos.Logging.StatsPageMiddleware>(logger);
 
             return fosBuilder;
+        }
+
+        public static string RequestPath(this IDictionary<string, object> context)
+        {
+            return (string)context["owin.RequestPathBase"] + (string)context["owin.RequestPath"];
         }
 	}
 }

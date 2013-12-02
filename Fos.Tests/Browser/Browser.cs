@@ -63,7 +63,7 @@ namespace Fos.Tests
             if (!endRequest)
                 throw new Exception("EndRequest was not received.");
 
-			return new BrowserResponse(Request.Stdout);
+			return new BrowserResponse(Request.AppStatus, Request.Stdout);
 		}
 
         public void Dispose()

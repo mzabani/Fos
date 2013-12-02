@@ -48,7 +48,8 @@ namespace Fos.Tests
 				var browser = new Browser(ListenOn, ListenPort);
 				var response = browser.ExecuteRequest("http://localhost/", "GET");
 
-				Assert.AreEqual(500, response.StatusCode);
+                //Assert.AreNotEqual(0, response.AppStatusCode);
+				Assert.AreEqual(500, response.HttpStatusCode);
 				Assert.That(ReadStream(response.ResponseBody).Contains("An error occured in the application. On purpose."));
 			}
 		}
@@ -84,7 +85,8 @@ namespace Fos.Tests
 				{
 					var emptyResponsePage = new EmptyResponsePage();
 
-					Assert.AreEqual(500, response.StatusCode);
+                    //Assert.AreNotEqual(0, response.AppStatusCode);
+					Assert.AreEqual(500, response.HttpStatusCode);
 					Assert.AreEqual(emptyResponsePage.Contents, ReadStream(response.ResponseBody));
 				}
 			}

@@ -7,12 +7,13 @@ namespace Fos.Tests
 {
 	class BrowserResponse : IDisposable
 	{
-		public int StatusCode { get; private set; }
-		public string StatusReason { get; private set; }
+        public int AppStatusCode { get; private set; }
+		public int HttpStatusCode { get; private set; }
+		public string HttpStatusReason { get; private set; }
 		public IDictionary<string, string> Headers { get; private set; }
 		public Stream ResponseBody { get; private set; }
 
-		public BrowserResponse(Stream response)
+		public BrowserResponse(int appStatusCode, Stream response)
 		{
 			if (response == null)
 				throw new ArgumentNullException ("response");
@@ -24,8 +25,8 @@ namespace Fos.Tests
 				// First line is status code.. something quick and dirty will do
 				string line = reader.ReadLine();
 				int spaceIdx = line.IndexOf(' ');
-				StatusCode = int.Parse(line.Substring(spaceIdx + 1, 3));
-				StatusReason = line.Substring(spaceIdx + 4);
+				HttpStatusCode = int.Parse(line.Substring(spaceIdx + 1, 3));
+				HttpStatusReason = line.Substring(spaceIdx + 4);
 
 				// Reads the headers
 				Headers = new Dictionary<string, string>();
@@ -43,7 +44,7 @@ namespace Fos.Tests
 
     			// TODO: Why do we need to do this? Something is very strange here!
     			response.Position = Headers.Sum (h => h.Key.Length + h.Value.Length + 4) + 2;
-    			response.Seek("Status: ".Length + StatusCode.ToString().Length + (StatusReason == null ? 0 : StatusReason.Length) + 2, SeekOrigin.Current);
+    			response.Seek("Status: ".Length + HttpStatusCode.ToString().Length + (HttpStatusReason == null ? 0 : HttpStatusReason.Length) + 2, SeekOrigin.Current);
     			// Write the response body and rewind the stream
     			byte[] buf = new byte[4096];
     			int bytesRead;

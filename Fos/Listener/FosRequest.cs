@@ -176,15 +176,21 @@ namespace Fos.Listener
 
 					// Show the exception to the visitor
 					SendErrorPage(e);
+
+                    SendEndRequest(-1, ProtocolStatus.RequestComplete);
 				}
 				else if (!OwinContext.SomeResponseExists)
                 {
 					// If we are here, then no response was set by the application, i.e. not a single header or response body
 					SendEmptyResponsePage();
-				}
 
-                // Signal error state -1
-                SendEndRequest(-1, ProtocolStatus.RequestComplete);
+                    SendEndRequest(-1, ProtocolStatus.RequestComplete);
+				}
+                else
+                {
+                    // Signal successful return status
+                    SendEndRequest(0, ProtocolStatus.RequestComplete);
+                }
 			});
 		}
 

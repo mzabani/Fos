@@ -74,7 +74,8 @@ namespace Fos.Owin
 		}
 
 		public IDictionary<string, object> Properties {
-			get {
+			get
+            {
 				return properties;
 			}
 		}
