@@ -52,6 +52,7 @@ namespace Fos.Logging
 		
 		private int ConcurrentConnectionsNow = 0;
 
+        private readonly object abruptClosingLock = new object();
 		/// <summary>
 		/// The total number of connections closed abruptly by the other side.
 		/// </summary>
@@ -136,13 +137,18 @@ namespace Fos.Logging
 
 		/// <summary>
 		/// Non thread safe method that stops a timer for a closing socket and returns the elapsed time since
-        /// the timer started.
+        /// the timer started. Returns a max valued TimeSpan if something went wrong.
 		/// </summary>
 		private TimeSpan StopConnectionTimer(Socket s)
 		{
-			var stopWatch = RequestWatches[s];
-			stopWatch.Stop();
-			return stopWatch.Elapsed;
+            Stopwatch stopWatch;
+            if (RequestWatches.TryGetValue(s, out stopWatch))
+            {
+                stopWatch.Stop();
+                return stopWatch.Elapsed;
+            }
+            else
+                return TimeSpan.MaxValue;
 		}
 		
         private readonly object lockPerPathObj = new object();
@@ -208,11 +214,14 @@ namespace Fos.Logging
 		
 		public void LogConnectionClosedAbruptly(Socket s, RequestInfo req)
 		{
-			//TODO: Lock
             try
             {
     			StopConnectionTimer(s);
-    			AbruptConnectionCloses++;
+
+                lock (abruptClosingLock)
+                {
+    			    AbruptConnectionCloses++;
+                }
             }
             catch
             {
@@ -250,15 +259,15 @@ namespace Fos.Logging
                         // First request to this endpoint with this method. Add it.
                         verbTimes = new RequestTimes(req.HttpMethod, req.RelativePath, requestTime);
                         timesForEndpoint.AddLast(verbTimes);
-                    } else
+                    }
+                    else
                     {
                         // Just update the times
                         if (verbTimes.MinimumTime > requestTime)
                             verbTimes.MinimumTime = requestTime;
                         if (verbTimes.MaximumTime < requestTime)
                             verbTimes.MaximumTime = requestTime;
-    				
-                        //TODO: Precision issues with the line below
+    				    
                         verbTimes.AverageTime = new TimeSpan((verbTimes.NumRequests * verbTimes.AverageTime.Ticks + requestTime.Ticks) / (verbTimes.NumRequests + 1));
                         verbTimes.NumRequests++;
                     }
