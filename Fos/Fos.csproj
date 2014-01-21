@@ -35,6 +35,9 @@
       <HintPath>..\packages\Owin.1.0\lib\net40\Owin.dll</HintPath>
     </Reference>
     <Reference Include="Mono.Posix" />
+    <Reference Include="FastCgiNet">
+      <HintPath>..\packages\FastCgiNet.0.1.0\lib\net40\FastCgiNet.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.cs" />
@@ -75,11 +78,5 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\FastCgiNet\FastCgiNet\FastCgiNet.csproj">
-      <Project>{A0F27C46-BC4E-4611-AF1F-A2B52A3746BD}</Project>
-      <Name>FastCgiNet</Name>
-    </ProjectReference>
   </ItemGroup>
 </Project>

@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
+  <metadata>
+    <id>FastCgiNet</id>
+    <version>0.1.0</version>
+    <title>FastCgiNet</title>
+    <authors>Marcelo Zabani</authors>
+    <owners>Marcelo Zabani</owners>
+    <licenseUrl>https://raw.github.com/mzabani/FastCgiNet/master/COPYING</licenseUrl>
+    <projectUrl>https://github.com/mzabani/FastCgiNet</projectUrl>
+    <requireLicenseAcceptance>true</requireLicenseAcceptance>
+    <description>FastCgi Library written in C#.</description>
+    <releaseNotes>First release.</releaseNotes>
+    <copyright>Copyright 2013</copyright>
+    <tags>FastCgi</tags>
+  </metadata>
+</package>
