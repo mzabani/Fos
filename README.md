@@ -7,7 +7,7 @@ Usage
 -----
 This software is a library for self hosting. This means that you should add a reference to it in your Owin Web Application, and run it like this:
 
-```
+```c#
 using Fos;
 using Fos.Owin;
 using Owin;
