@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.IO;
@@ -50,6 +51,7 @@ namespace Fos.Logging
         {
             var builder = new System.Text.StringBuilder();
             builder.AppendLine("<h2>Overall</h2>");
+            builder.AppendFormat("Server last started {0}<br/>", Logger.ServerStarted.Last());
             builder.AppendFormat("Total connections received: {0}<br />", Logger.TotalConnectionsReceived);
 
             builder.AppendLine("<h2>Request Times</h2>");
@@ -67,35 +69,51 @@ namespace Fos.Logging
             }
             builder.Append("</table>\n");
 
+            var applicationErrors = Logger.GetAllApplicationErrors();
             builder.Append("<h2>Application Errors</h2>");
-            builder.AppendLine("<table id=\"application_errors\"><tr><th>Path</th><th>Method</th><th>Error</th><th></th></tr>");
-            i = 0;
-            foreach (var error in Logger.GetAllApplicationErrors())
+            if (!applicationErrors.Any())
             {
-                string row_class = (i % 2 == 0) ? "even_row" : "odd_row";
-                builder.AppendFormat("<tr class=\"{0}\"><td>{1}</td><td>{2}</td><td>{3}</td><td class=\"see_details\">details</td></tr>\n", row_class, HtmlEncode(error.RelativePath), HtmlEncode(error.HttpMethod), HtmlEncode(error.Error.Message));
-                
-                // Now the line with more data
-                builder.AppendFormat("<tr class=\"row_data\"><td colspan=\"4\"><div style=\"padding-left: 10px;\">{0}</div></td></tr>\n", error.Error.ToString());
-                
-                i++;
+                builder.AppendLine("<p>No application errors<p>");
             }
-            builder.Append("</table>\n");
+            else
+            {
+                builder.AppendLine("<table id=\"application_errors\"><tr><th>Path</th><th>Method</th><th>Error</th><th></th></tr>");
+                i = 0;
+                foreach (var error in applicationErrors)
+                {
+                    string row_class = (i % 2 == 0) ? "even_row" : "odd_row";
+                    builder.AppendFormat("<tr class=\"{0}\"><td>{1}</td><td>{2}</td><td>{3}</td><td class=\"see_details\">details</td></tr>\n", row_class, HtmlEncode(error.RelativePath), HtmlEncode(error.HttpMethod), HtmlEncode(error.Error.Message));
+                    
+                    // Now the line with more data
+                    builder.AppendFormat("<tr class=\"row_data\"><td colspan=\"4\"><div style=\"padding-left: 10px;\">{0}</div></td></tr>\n", error.Error.ToString());
+                    
+                    i++;
+                }
+                builder.Append("</table>\n");
+            }
 
+            var serverErrors = Logger.GetAllServerErrors();
             builder.Append("<h2>Server Errors</h2>");
-            builder.AppendLine("<table id=\"server_errors\"><tr><th>Type</th><th></th></tr>");
-            i = 0;
-            foreach (var error in Logger.GetAllServerErrors())
+            if (!serverErrors.Any())
             {
-                string row_class = (i % 2 == 0) ? "even_row" : "odd_row";
-                builder.AppendFormat("<tr class=\"{0}\"><td>{1}</td><td class=\"see_details\">details</td></tr>\n", row_class, HtmlEncode(error.GetType().ToString()));
-                
-                // Now the line with more data
-                builder.AppendFormat("<tr class=\"row_data\"><td colspan=\"4\"><div style=\"padding-left: 10px;\">{0}</div></td></tr>\n", HtmlEncode(error.ToString()));
-                
-                i++;
+                builder.AppendLine("<p>No server errors</p>");
             }
-            builder.Append("</table>\n");
+            else
+            {
+                builder.AppendLine("<table id=\"server_errors\"><tr><th>Type</th><th></th></tr>");
+                i = 0;
+                foreach (var error in serverErrors)
+                {
+                    string row_class = (i % 2 == 0) ? "even_row" : "odd_row";
+                    builder.AppendFormat("<tr class=\"{0}\"><td>{1}</td><td class=\"see_details\">details</td></tr>\n", row_class, HtmlEncode(error.GetType().ToString()));
+                    
+                    // Now the line with more data
+                    builder.AppendFormat("<tr class=\"row_data\"><td colspan=\"4\"><div style=\"padding-left: 10px;\">{0}</div></td></tr>\n", HtmlEncode(error.ToString()));
+                    
+                    i++;
+                }
+                builder.Append("</table>\n");
+            }
 
             return builder.ToString();
         }
