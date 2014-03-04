@@ -73,11 +73,6 @@ namespace Fos
             if (logger != null)
                 base.SetLogger(logger);
 
-//            // Signs up for important events, then starts the listener
-//			FastCgiListener.OnReceiveBeginRequestRecord += OnReceiveBeginRequest;
-//			FastCgiListener.OnReceiveParamsRecord += OnReceiveParams;
-//			FastCgiListener.OnReceiveStdinRecord += OnReceiveStdin;
-
             base.Start(background);
 		}
 
@@ -100,61 +95,7 @@ namespace Fos
                 throw new ArgumentNullException("logger");
 
             this.UserSetLogger = logger;
-		}
-
-//        protected override void OnRecordBuild(RecordBase rec, FosRequest req)
-//        {
-//            if (rec.RecordType == RecordType.FCGIBeginRequest)
-//                OnReceiveStdin(req, rec);
-//        }
-
-//
-//		private void OnReceiveBeginRequest(FosRequest req, BeginRequestRecord rec)
-//        {
-//			req.ApplicationPipelineEntry = OwinPipelineEntry;
-//            req.FlushPeriodically = FlushPeriodically;
-//		}
-//
-//		private void OnReceiveParams(FosRequest req, ParamsRecord rec)
-//        {
-//			req.ReceiveParams(rec);
-//		}
-
-//		private void OnReceiveStdin(FosRequest req, StdinRecord rec)
-//        {
-//			var onCloseConnection = req.ReceiveStdin(rec);
-//			if (onCloseConnection == null)
-//				return;
-//
-//			onCloseConnection.ContinueWith(t =>
-//			{
-//				//TODO: The task may have failed or something else happened, verify
-//                // Remember that connections closed by the other side abruptly have already
-//                // been closed by the listener loop, so we shouldn't call Request.CloseSocket() here again
-//				if (req.ApplicationMustCloseConnection)
-//                {
-//                    req.Dispose();
-//                }
-//			});
-//		}
-
-//		/// <summary>
-//		/// Binds the TCP listen socket to an address an a port.
-//		/// </summary>
-//		public void Bind(System.Net.IPAddress addr, int port)
-//		{
-//			FastCgiListener.Bind(addr, port);
-//		}
-//
-//#if __MonoCS__
-//		/// <summary>
-//		/// Defines the unix socket path to listen on.
-//		/// </summary>
-//		public void Bind(string socketPath)
-//		{
-//			FastCgiListener.Bind(socketPath);
-//		}
-//#endif
+ 		}
 
 		public override void Dispose()
 		{
@@ -168,7 +109,6 @@ namespace Fos
 		public FosSelfHost(Action<IAppBuilder> configureMethod)
 		{
 			ApplicationConfigure = configureMethod;
-			//FastCgiListener = new SocketListener();
 			OnAppDisposal = new CancellationTokenSource();
 		}
 	}

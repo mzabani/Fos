@@ -28,6 +28,7 @@ namespace Fos.Listener
 		private const int listenBacklog = 500;
 		private Socket tcpListenSocket;
 		private Socket unixListenSocket;
+        private string unixSocketFilePath;
 		private bool SomeListenSocketHasBeenBound
 		{
 			get
@@ -269,6 +270,7 @@ namespace Fos.Listener
 		/// </summary>
 		public void Bind(string socketPath)
 		{
+            unixSocketFilePath = socketPath;
 			var endpoint = new Mono.Unix.UnixEndPoint(socketPath);
 			unixListenSocket.Bind (endpoint);
 		}
@@ -311,7 +313,10 @@ namespace Fos.Listener
 			if (tcpListenSocket != null && tcpListenSocket.IsBound)
 				tcpListenSocket.Close();
 			if (unixListenSocket != null && unixListenSocket.IsBound)
-				unixListenSocket.Close();
+            {
+                unixListenSocket.Close();
+                System.IO.File.Delete(unixSocketFilePath);
+            }
 
 			//TODO: Stop task that waits for connection data..
             if (Logger != null)
@@ -346,7 +351,7 @@ namespace Fos.Listener
 		public SocketListener()
 		{
 			tcpListenSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-#if __MonoCs__
+#if __MonoCS__
 			unixListenSocket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.IP); // man unix (7) says most unix implementations are safe on deliveryand order
 #endif
 

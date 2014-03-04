@@ -48,6 +48,8 @@ static void applicationRegistration(IAppBuilder builder)
 }
 ```
 
+*Note about Unix Sockets*: NuGet's Fos has a bug that will make it throw a ```NullReferenceException``` when binding to an Unix Socket with Mono. This is fixed in **master**. Also, Fos does not sets permissions for you in the socket file, but does remove the socket file when stopped, so make sure permissions are all set.
+
 Architecture
 ------------
 Fos is comprised of a main loop, where it handles new connections and incoming data from established ones. This loop runs synchronous socket operations only when these wouldn't block. In essence, it is an asynchronous loop.
@@ -58,7 +60,7 @@ Always remember to use ````async```` and ````await```` if you are writing C# 5 o
 
 Installation
 ---------
-You can install Fos via NuGet.
+You can install Fos via NuGet or build it manually for the latest bug fixes and features.
 
 Build instructions:
 Clone this repository and open this solution in Monodevelop (this is the development IDE I use, in fact) or Visual Studio, then Build. You will find the binary Fos.dll in your *bin* folder. Yes, it is that simple.
