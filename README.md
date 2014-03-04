@@ -7,7 +7,7 @@ Usage
 -----
 This software is a library for self hosting. This means that you should add a reference to it in your Owin Web Application, and run it like this:
 
-```
+```c#
 using Fos;
 using Fos.Owin;
 using Owin;
@@ -21,13 +21,13 @@ public static void Main(string[] args)
 	using (FosServer = new FosSelfHost(applicationRegistration))
 	{
 		// Bind on 127.0.0.1, port 9000
-		fcgiSelfHost.Bind(System.Net.IPAddress.Loopback, 9000);
+		FosServer.Bind(System.Net.IPAddress.Loopback, 9000);
 
 		// If you're on *nix and like unix sockets
-		fcgiSelfHost.Bind("/tmp/fcgisocket.sock");
+		FosServer.Bind("/tmp/fcgisocket.sock");
 
 		// Start the server.
-		fcgiSelfHost.Start(false);
+		FosServer.Start(false);
 	}
 }
 
