@@ -12,12 +12,11 @@ namespace Fos
     using OwinHandler = Func<IDictionary<string, object>, System.Threading.Tasks.Task>;
 
 	/// <summary>
-	/// This is the class you need to use to host your web application. It will create a TCP Socket that receives FastCgi
+	/// This is the class you need to use to host your web application. It will create a Socket that receives FastCgi
 	/// connections from your web server, passing them to the Owin pipeline.
 	/// </summary>
 	public class FosSelfHost : SocketListener
 	{
-		//private SocketListener FastCgiListener;
 		private FosAppBuilder AppBuilder;
 		private OwinHandler OwinPipelineEntry;
 		private Action<IAppBuilder> ApplicationConfigure;

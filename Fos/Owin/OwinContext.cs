@@ -150,15 +150,17 @@ namespace Fos.Owin
         //private readonly static System.Text.RegularExpressions.Regex HttpHeaderRegex = new System.Text.RegularExpressions.Regex(@"HTTP_(([^ _])+(_?))+");
 		public void SetOwinParametersFromFastCgiNvp(NameValuePair nameValuePair)
 		{
-			if (nameValuePair.Name == "SERVER_PROTOCOL")
+            string nvpName = nameValuePair.Name;
+
+			if (nvpName == "SERVER_PROTOCOL")
                 Set("owin.RequestProtocol", nameValuePair.Value);
-            else if (nameValuePair.Name == "REQUEST_METHOD")
+            else if (nvpName == "REQUEST_METHOD")
                 Set("owin.RequestMethod", nameValuePair.Value.ToUpperInvariant());
-            else if (nameValuePair.Name == "QUERY_STRING")
+            else if (nvpName == "QUERY_STRING")
                 Set("owin.RequestQueryString", nameValuePair.Value);
-            else if (nameValuePair.Name == "HTTPS" && nameValuePair.Value == "on")
+            else if (nvpName == "HTTPS" && nameValuePair.Value == "on")
                 Set("owin.RequestScheme", "https");
-            else if (nameValuePair.Name == "DOCUMENT_URI")
+            else if (nvpName == "DOCUMENT_URI")
             {
                 Set("owin.RequestPathBase", string.Empty);
                 Set("owin.RequestPath", nameValuePair.Value);
@@ -172,7 +174,7 @@ namespace Fos.Owin
 			// HTTP_ACCEPT_LANGUAGE
 			// HTTP_COOKIE
 			// many others..
-            else if (nameValuePair.Name.StartsWith("HTTP_"))
+            else if (nvpName.StartsWith("HTTP_"))
             {
                 //TODO: Avoid creating strings and create a decent algorithm for this conversion
                 // Replace _ by - and pascal case single words to create pretty http headers
@@ -193,34 +195,8 @@ namespace Fos.Owin
 
                 SetRequestHeader(builder.ToString(), nameValuePair.Value);
             }
-
-//			else if (nameValuePair.Name == "HTTP_HOST")
-//				SetRequestHeader("Host", nameValuePair.Value);
-//			else if (nameValuePair.Name == "HTTP_ACCEPT")
-//				SetRequestHeader("Accept", nameValuePair.Value);
-//			else if (nameValuePair.Name == "HTTP_ACCEPT_ENCODING")
-//				SetRequestHeader("Accept-Encoding", nameValuePair.Value);
-//			else if (nameValuePair.Name == "HTTP_ACCEPT_LANGUAGE")
-//				SetRequestHeader("Accept-Language", nameValuePair.Value);
-//			else if (nameValuePair.Name == "HTTP_CONNECTION")
-//				SetRequestHeader("Connection", nameValuePair.Value);
-//			else if (nameValuePair.Name == "HTTP_CONTENT_LENGTH")
-//				SetRequestHeader("Content-Length", nameValuePair.Value);
-//			else if (nameValuePair.Name == "HTTP_ORIGIN")
-//				SetRequestHeader("Origin", nameValuePair.Value);
-//			else if (nameValuePair.Name == "HTTP_X_REQUESTED_WITH")
-//				SetRequestHeader("X-Requested-With", nameValuePair.Value);
-//			else if (nameValuePair.Name == "HTTP_USER_AGENT")
-//				SetRequestHeader("User-Agent", nameValuePair.Value);
-//			else if (nameValuePair.Name == "HTTP_CONTENT_TYPE")
-//				SetRequestHeader("Content-Type", nameValuePair.Value);
-//			else if (nameValuePair.Name == "HTTP_REFERER")
-//				SetRequestHeader("Referer", nameValuePair.Value);
-//			else if (nameValuePair.Name == "HTTP_AUTHORIZATION")
-//				SetRequestHeader("Authorization", nameValuePair.Value);
-//			else if (nameValuePair.Name == "HTTP_COOKIE")
-//				SetRequestHeader("Cookie", nameValuePair.Value);
 		}
+
         /// <summary>
         /// Sets Owin parameters according to the received FastCgi Params in <paramref name="stream"/>.
         /// </summary>

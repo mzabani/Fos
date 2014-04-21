@@ -1,23 +1,16 @@
 using System;
-using System.Linq;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
-using FastCgiNet;
-using Fos.Logging;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using FastCgiNet;
+using Fos.Logging;
 
 namespace Fos.Listener
 {
-//	internal delegate void ReceiveStdinRecord(FosRequest req, StdinRecord record);
-//	internal delegate void ReceiveStdoutRecord(FosRequest req, StdoutRecord record);
-//	internal delegate void ReceiveStderrRecord(FosRequest req, StderrRecord record);
-//	internal delegate void ReceiveBeginRequestRecord(FosRequest req, BeginRequestRecord record);
-//	internal delegate void ReceiveEndRequestRecord(FosRequest req, EndRequestRecord record);
-//	internal delegate void ReceiveParamsRecord(FosRequest req, ParamsRecord record);
-
 	/// <summary>
 	/// This class will provide you a listener application. It will listen to new connections and handle data while
 	/// providing ways for you to know what records different FastCgi connections are receiving. It features a highly asynchronous
@@ -25,7 +18,7 @@ namespace Fos.Listener
 	/// </summary>
 	public abstract class SocketListener : IDisposable
 	{
-		private const int listenBacklog = 500;
+		private int listenBacklog = 500;
 		private Socket tcpListenSocket;
 		private Socket unixListenSocket;
         private string unixSocketFilePath;
@@ -44,25 +37,6 @@ namespace Fos.Listener
 		/// Requests indexed by their sockets. There is no support for multiplexing.
 		/// </summary>
 		private ConcurrentDictionary<Socket, FosRequest> OpenSockets = new ConcurrentDictionary<Socket, FosRequest>();
-
-//		#region Events to receive records
-//		/// <summary>
-//		/// Upon receiving a record with this event, do not run any blocking code, or the application's main loop will block as well.
-//		/// </summary>
-//		public event ReceiveBeginRequestRecord OnReceiveBeginRequestRecord = delegate {};
-//		/// <summary>
-//		/// Upon receiving a record with this event, do not run any blocking code, or the application's main loop will block as well.
-//		/// </summary>
-//		public event ReceiveParamsRecord OnReceiveParamsRecord = delegate {};
-//		/// <summary>
-//		/// Upon receiving a record with this event, do not run any blocking code, or the application's main loop will block as well.
-//		/// </summary>
-//		public event ReceiveStdinRecord OnReceiveStdinRecord = delegate {};
-//		/// <summary>
-//		/// Upon receiving a record with this event, do not run any blocking code, or the application's main loop will block as well.
-//		/// </summary>
-//		public event ReceiveStdoutRecord OnReceiveStdoutRecord = delegate {};
-//		#endregion
 
 		/// <summary>
 		/// Closes and disposes of a Request and its Socket while also removing it from the internal collection of open sockets.
@@ -202,14 +176,6 @@ namespace Fos.Listener
 			}
 		}
 
-		/*
-		void OnConnectionAccepted(object sender, SocketAsyncEventArgs e)
-		{
-			var brr = new ByteReaderAndRequest(new ByteReader(RecFactory));
-			OpenSockets[Socket] = brr;
-		}
-		*/
-
 		/// <summary>
 		/// Accepts all pending connections on a socket asynchronously.
 		/// </summary>
@@ -266,7 +232,8 @@ namespace Fos.Listener
 
 #if __MonoCS__
 		/// <summary>
-		/// Defines the unix socket path to listen on.
+		/// Defines the unix socket path to listen on. The socket file can't exist before this method is called and Fos's process has to have
+        /// permissions to remove the file when the server is stopped.
 		/// </summary>
 		public void Bind(string socketPath)
 		{
@@ -352,7 +319,7 @@ namespace Fos.Listener
 		{
 			tcpListenSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 #if __MonoCS__
-			unixListenSocket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.IP); // man unix (7) says most unix implementations are safe on deliveryand order
+			unixListenSocket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.IP); // man unix (7) says most unix implementations are safe on delivery and order
 #endif
 
 			IsRunning = false;
