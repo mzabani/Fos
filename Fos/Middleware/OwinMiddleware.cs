@@ -39,7 +39,12 @@ namespace Fos.Owin
 				ConstructorInfo ctor;
 				try
 				{
-					ctor = MiddlewareType.GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).Where(c => c.GetParameters().Length >= 1 && c.GetParameters().Length - 1 <= Args.Length).OrderByDescending(c => c.GetParameters().Length).First();
+					// filtered by matching all with Args type(except null Args)
+					ctor = MiddlewareType.GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).Where(c => c.GetParameters().Length >= 1 && c.GetParameters().Length - 1 <= Args.Length).OrderByDescending(c => c.GetParameters().Length)
+						.Where((ct)=>{
+							return ct.GetParameters().Zip(Args,(pinfo,arg)=>(arg==null)||(pinfo.ParameterType == arg.GetType()))
+								.All(b=>b);
+						}).First();
 				}
 				catch
 				{
