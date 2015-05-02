@@ -8,7 +8,7 @@ using FastCgiNet.Streams;
 
 namespace Fos.Owin
 {
-	internal class OwinContext : IDictionary<string, object>
+	public class OwinContext : IDictionary<string, object>
 	{
 		/// <summary>
 		/// The parameters dictionary of the owin pipeline, built through this class's methods.
@@ -148,7 +148,7 @@ namespace Fos.Owin
 		}
 
         //private readonly static System.Text.RegularExpressions.Regex HttpHeaderRegex = new System.Text.RegularExpressions.Regex(@"HTTP_(([^ _])+(_?))+");
-		public void SetOwinParametersFromFastCgiNvp(NameValuePair nameValuePair)
+		internal void SetOwinParametersFromFastCgiNvp(NameValuePair nameValuePair)
 		{
             string nvpName = nameValuePair.Name;
 
