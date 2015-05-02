@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace Fos
 {
-    internal class HeaderDictionary : IDictionary<string, string[]>
+    public class HeaderDictionary : IDictionary<string, string[]>
     {
         private Dictionary<string, string[]> Headers;
 
