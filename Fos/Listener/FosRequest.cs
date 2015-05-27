@@ -188,6 +188,12 @@ namespace Fos.Listener
 				}
                 else
                 {
+                    // If no data has been written (e.g. 304 w/- empty response), the headers won't have been written
+                    if (stdout.Length == 0)
+                    {
+                        SendHeaders();
+                    }
+
                     // Signal successful return status
                     SendEndRequest(0, ProtocolStatus.RequestComplete);
                 }
