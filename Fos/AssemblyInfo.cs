@@ -4,10 +4,10 @@ using System.Runtime.CompilerServices;
 // Information about this assembly is defined by the following attributes. 
 // Change them to the values specific to your project.
 
-[assembly: AssemblyTitle("Server")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyTitle("Fos")]
+[assembly: AssemblyDescription("FastCgi Server designed to run Owin applications side by side with a FastCgi enabled web server.")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
+[assembly: AssemblyCompany("mzabani")]
 [assembly: AssemblyProduct("")]
 [assembly: AssemblyCopyright("mzabani")]
 [assembly: AssemblyTrademark("")]
