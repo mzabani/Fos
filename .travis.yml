@@ -2,7 +2,7 @@ language: csharp
 solution: Fos.sln
 install:
   - nuget restore Fos.sln
-  - nuget install NUnit.Runners -Version 2.6.4 -OutputDirectory testrunner
+  - nuget install NUnit.ConsoleRunner -Version 3.7.0 -OutputDirectory testrunner
 script:
   - xbuild /p:Configuration=Release Fos.sln
-  - mono ./testrunner/NUnit.Console.3.7.0/tools/nunit-console.exe ./Fos.Tests/bin/Release/Fos.Tests.dll
+  - mono ./testrunner/NUnit.ConsoleRunner.3.7.0/tools/nunit3-console.exe ./Fos.Tests/bin/Release/Fos.Tests.dll
