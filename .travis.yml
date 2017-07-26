@@ -2,7 +2,6 @@ language: csharp
 solution: Fos.sln
 install:
   - nuget install NUnit.ConsoleRunner -Version 3.7.0 -OutputDirectory testrunner
-  - nuget restore Fos.sln -OutputDirectory packages -Verbosity detailed
   - nuget install FastCgiNet -OutputDirectory packages
   - nuget install Mono.Posix -OutputDirectory packages
   - nuget install Owin -OutputDirectory packages
