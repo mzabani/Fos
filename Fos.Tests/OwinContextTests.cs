@@ -12,7 +12,7 @@ namespace Fos.Tests
 	{
 		private CancellationTokenSource TokenSource;
 
-		[TestFixtureSetUp]
+        [OneTimeSetUp]
 		public void Setup()
 		{
 			TokenSource = new CancellationTokenSource();

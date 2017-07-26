@@ -1,25 +1,22 @@
-using System;
-using System.Collections.Generic;
-using System.Net;
-using System.Linq;
-using System.Net.Sockets;
-using System.IO;
 using FastCgiNet;
-using FastCgiNet.Streams;
 using FastCgiNet.Requests;
+using FastCgiNet.Streams;
+using System;
+using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 
 namespace Fos.Tests
 {
-	/// <summary>
-	/// This class helps you simulate a browser by creating the appropriate FastCgi records that a webserver would create.
-	/// </summary>
-	class Browser : IDisposable
+    /// <summary>
+    /// This class helps you simulate a browser by creating the appropriate FastCgi records that a webserver would create.
+    /// </summary>
+    class Browser : IDisposable
 	{
 		private System.Net.IPAddress FastCgiServer;
 		private int FastCgiServerPort;
         private int MaxPollTime = 10000000;
-
-        protected FastCgiStream ResponseStream;
+        
         protected WebServerSocketRequest Request;
         protected ushort RequestId
         {
@@ -70,9 +67,6 @@ namespace Fos.Tests
         {
             if (Request != null)
                 Request.Dispose();
-
-            if (ResponseStream != null)
-                ResponseStream.Dispose();
         }
 
 		public Browser(System.Net.IPAddress fcgiServer, int port)

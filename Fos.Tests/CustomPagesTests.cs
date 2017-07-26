@@ -14,9 +14,9 @@ namespace Fos.Tests
 	{
 		private System.Net.IPAddress ListenOn;
 		private int ListenPort;
-		
-		[TestFixtureSetUp]
-		public void Setup()
+
+        [OneTimeSetUp]
+        public void Setup()
 		{
 			ListenOn = System.Net.IPAddress.Loopback;
 			ListenPort = 9007;
