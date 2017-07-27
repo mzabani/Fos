@@ -12,7 +12,7 @@ namespace Fos.Tests
     [TestFixture]
     public class AbruptConnectionClosing : SocketTests
     {
-        [Ignore]
+        [Ignore("CloseConnectionAbruptlyBeforeSendingAnyRecord")]
         public void CloseConnectionAbruptlyBeforeSendingAnyRecord()
         {
             var logger = new OneRequestTestLogger();
@@ -60,12 +60,12 @@ namespace Fos.Tests
             }
         }
 
-        [Ignore]
+        [Ignore("CloseConnectionAbruptlyAfterSendingIncompleteDataWithoutEmptyParamsRecord")]
         public void CloseConnectionAbruptlyAfterSendingIncompleteDataWithoutEmptyParamsRecord()
         {
         }
 
-        [Ignore]
+        [Ignore("CloseConnectionAbruptlyAfterSendingIncompleteDataWithEmptyParamsRecord")]
         public void CloseConnectionAbruptlyAfterSendingIncompleteDataWithEmptyParamsRecord()
         {
         }
